@@ -60,7 +60,9 @@
     "notifications": "الإشعارات",
     "auditLog": "سجل التدقيق",
     "settings": "الإعدادات",
-    "profile": "ملفي الشخصي"
+    "profile": "ملفي الشخصي",
+    "ranks": "الرتب",
+    "passwordRequests": "طلبات كلمة المرور"
   },
   "sections": {
     "companies": { "title": "الشركات", "description": "إنشاء الشركات العميلة وتعليقها وإعادة تفعيلها." },
@@ -76,7 +78,9 @@
     "notifications": { "title": "الإشعارات", "description": "التنبيهات والأنشطة التي تتطلب انتباهك." },
     "auditLog": { "title": "سجل التدقيق", "description": "سجل بكل التغييرات المهمة." },
     "settings": { "title": "الإعدادات", "description": "ملف الشركة وقواعد الاعتماد والصلاحيات." },
-    "profile": { "title": "ملفي الشخصي", "description": "بياناتك وكلمة المرور وأمان تسجيل الدخول." }
+    "profile": { "title": "ملفي الشخصي", "description": "بياناتك وكلمة المرور وأمان تسجيل الدخول." },
+    "ranks": { "title": "الرتب", "description": "إنشاء الرتب وتحديد صلاحياتها." },
+    "passwordRequests": { "title": "طلبات كلمة المرور", "description": "مراجعة طلبات تغيير كلمة المرور." }
   },
   "settings": {
     "title": "إعداداتي الشخصية",
@@ -368,5 +372,69 @@
     "adminUserId": "رقم مستخدم المسؤول",
     "provisionWarning": "تم حفظ الشركة وبيانات المسؤول، لكن تعذر إنشاء حساب الدخول الآن. يمكنك إنشاؤه يدوياً من Firebase.",
     "firstLoginNote": "يجب على المسؤول تسجيل الدخول بكلمة المرور المؤقتة وتغييرها قبل استخدام النظام."
+  },
+  "branchesPage": {
+    "title": "الفروع",
+    "description": "أضف فرعاً أو أكثر لشركتك.",
+    "add": "إضافة فرع",
+    "emptyTitle": "لا توجد فروع بعد",
+    "emptyBody": "أضف فرعك الأول لبدء تنظيم فريقك.",
+    "membersCount": "{{count}} شخص",
+    "branch": "فرع",
+    "addTitle": "إضافة فرع جديد",
+    "fieldName": "اسم الفرع",
+    "addFailed": "تعذر إنشاء الفرع. حاول مرة أخرى."
+  },
+  "ranksPage": {
+    "title": "الرتب",
+    "description": "أنشئ الرتب وحدد صلاحياتها.",
+    "add": "إضافة رتبة",
+    "emptyTitle": "لا توجد رتب بعد",
+    "emptyBody": "أنشئ رتبتك الأولى وحدد صلاحياتها.",
+    "level": "المستوى {{level}}",
+    "addTitle": "إضافة رتبة جديدة",
+    "editTitle": "تعديل الرتبة",
+    "addDescription": "سمِّ الرتبة، حدد مستواها، واختر ما يمكنها فعله.",
+    "fieldName": "اسم الرتبة (إنجليزي)",
+    "fieldNameAr": "اسم الرتبة (عربي)",
+    "fieldLevel": "المستوى",
+    "permissionsLabel": "الصلاحيات",
+    "saveFailed": "تعذر حفظ الرتبة. حاول مرة أخرى.",
+    "deleteTitle": "حذف الرتبة",
+    "deleteConfirm": "هل أنت متأكد من حذف \"{{name}}\"؟ سيفقد الموظفون المرتبطون بها صلاحياتها.",
+    "deleteFailed": "تعذر حذف الرتبة. حاول مرة أخرى.",
+    "permissions": {
+      "branch.manage": "إدارة الفروع",
+      "employee.import": "استيراد موظفين (Excel)",
+      "target.import": "استيراد أهداف المبيعات (Excel)",
+      "sale.create": "إدخال المبيعات اليومية",
+      "sale.approve": "الموافقة على المبيعات",
+      "employee.promote": "ترقية الموظفين",
+      "employee.suspend": "إيقاف / تعطيل الموظفين",
+      "employee.revoke": "إزالة صلاحيات الموظفين",
+      "employee.transfer": "نقل الموظف بين الفروع",
+      "password.approve": "الموافقة على طلبات تغيير كلمة المرور",
+      "performance.review": "مراجعة أداء الموظفين"
+    }
+  },
+  "passwordRequests": {
+    "title": "طلبات تغيير كلمة المرور",
+    "description": "راجع طلبات الموظفين الذين لا يستطيعون تغيير كلمة المرور عبر البريد.",
+    "emptyTitle": "لا توجد طلبات",
+    "emptyBody": "عندما يطلب موظف تغيير كلمة المرور، ستظهر طلبه هنا للموافقة.",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "columns": {
+      "employee": "الموظف",
+      "userId": "رقم المستخدم",
+      "requestedAt": "تاريخ الطلب",
+      "status": "الحالة",
+      "actions": "إجراءات"
+    },
+    "status": {
+      "pending": "قيد الانتظار",
+      "approved": "موافق عليه",
+      "rejected": "مرفوض"
+    }
   }
 }

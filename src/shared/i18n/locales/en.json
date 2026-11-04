@@ -60,7 +60,9 @@
     "notifications": "Notifications",
     "auditLog": "Audit log",
     "settings": "Settings",
-    "profile": "My profile"
+    "profile": "My profile",
+    "ranks": "Ranks",
+    "passwordRequests": "Password requests"
   },
   "sections": {
     "companies": { "title": "Companies", "description": "Create, suspend and reactivate client companies." },
@@ -76,7 +78,9 @@
     "notifications": { "title": "Notifications", "description": "Alerts and activity that need your attention." },
     "auditLog": { "title": "Audit log", "description": "A record of every important change." },
     "settings": { "title": "Settings", "description": "Company profile, approval rules and access." },
-    "profile": { "title": "My profile", "description": "Your details, password and sign-in security." }
+    "profile": { "title": "My profile", "description": "Your details, password and sign-in security." },
+    "ranks": { "title": "Ranks", "description": "Create ranks and assign their permissions." },
+    "passwordRequests": { "title": "Password requests", "description": "Review password change requests." }
   },
   "settings": {
     "title": "Personal settings",
