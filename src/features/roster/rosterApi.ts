@@ -29,6 +29,7 @@ export interface RosterMember {
   branchName: string | null;
   teamId: string | null;
   teamName: string | null;
+  customRankId: string | null;
   canManage: boolean;
 }
 
@@ -58,6 +59,7 @@ export interface RosterMemberFields {
   companyId: string | null;
   branchId: string | null;
   teamId: string | null;
+  customRankId?: string | null;
 }
 
 export interface RosterImportRow {
@@ -72,6 +74,7 @@ export interface RosterImportRow {
   email: string;
   status: RosterStatus;
   password?: string;
+  customRankId?: string | null;
 }
 
 export interface RosterValidationIssue {

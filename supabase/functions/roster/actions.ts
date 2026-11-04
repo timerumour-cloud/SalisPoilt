@@ -35,6 +35,7 @@ export function toMemberDto(row: MemberRow, manageable: boolean) {
     branchName: row.branches?.name ?? null,
     teamId: row.team_id,
     teamName: row.teams?.name ?? null,
+    customRankId: row.custom_rank_id ?? null,
     canManage: manageable,
   };
 }
@@ -220,6 +221,7 @@ async function updateMember(actor: MemberRow, body: Record<string, unknown>) {
       company_id: next.companyId,
       branch_id: next.branchId,
       team_id: next.teamId,
+      custom_rank_id: optionalUuid(fields.customRankId, "rank") ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);

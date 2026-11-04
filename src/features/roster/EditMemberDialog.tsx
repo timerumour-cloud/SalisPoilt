@@ -7,27 +7,32 @@ import { Button } from '@/shared/ui/Button';
 import { Field, inputClass } from '@/shared/ui/Field';
 import { Modal } from '@/shared/ui/Modal';
 import {
-  ROLE_CODES,
   type RosterListResponse,
   type RosterMember,
   type RosterMemberFields,
 } from '@/features/roster/rosterApi';
+import type { CustomRank } from '@/features/roster/rosterApi';
 
 const schema = z.object({
   fullNameEn: z.string().trim().min(1),
   fullNameAr: z.string().trim(),
-  role: z.enum(ROLE_CODES),
-  companyId: z.string(),
-  branchId: z.string(),
-  teamId: z.string(),
+  customRankId: z.string(),
   status: z.enum(['Active', 'Suspended']),
 });
 
 type EditValues = z.infer<typeof schema>;
 
+export interface EditMemberSaveFields {
+  fullNameEn: string;
+  fullNameAr: string | null;
+  customRankId: string | null;
+  status: 'Active' | 'Suspended';
+}
+
 export function EditMemberDialog({
   member,
   roster,
+  ranks,
   pending,
   error,
   onSave,
@@ -40,9 +45,10 @@ export function EditMemberDialog({
 }: {
   member: RosterMember | null;
   roster: RosterListResponse;
+  ranks: CustomRank[];
   pending: boolean;
   error: boolean;
-  onSave: (fields: RosterMemberFields) => void;
+  onSave: (fields: EditMemberSaveFields) => void;
   onCreateCompany: (name: string) => Promise<{ id: string; name: string }>;
   onResetPassword: (newPassword: string) => Promise<void>;
   resetPasswordPending: boolean;
@@ -56,6 +62,7 @@ export function EditMemberDialog({
   const [createCompanyError, setCreateCompanyError] = useState(false);
   const [showReset, setShowReset] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [showCompanySection, setShowCompanySection] = useState(false);
   const {
     register,
     handleSubmit,
@@ -69,28 +76,15 @@ export function EditMemberDialog({
     reset(member ? valuesFor(member) : emptyValues());
     setShowReset(false);
     setNewPassword('');
+    setShowCompanySection(false);
   }, [member, reset]);
-
-  const companyId = watch('companyId');
-  const branchId = watch('branchId');
-  const branches = useMemo(
-    () => roster.lookups.branches.filter((branch) => branch.company_id === companyId),
-    [roster.lookups.branches, companyId]
-  );
-  const teams = useMemo(
-    () => roster.lookups.teams.filter((team) => team.branch_id === branchId),
-    [roster.lookups.teams, branchId]
-  );
 
   const submit = (values: EditValues) => {
     onSave({
       fullNameEn: values.fullNameEn,
       fullNameAr: values.fullNameAr || null,
-      role: values.role,
+      customRankId: values.customRankId || null,
       status: values.status,
-      companyId: values.companyId || null,
-      branchId: values.branchId || null,
-      teamId: values.teamId || null,
     });
   };
 
@@ -110,11 +104,12 @@ export function EditMemberDialog({
           <Field id="edit-name-ar" label={t('roster.edit.nameAr')}>
             <input id="edit-name-ar" dir="auto" className={inputClass} {...register('fullNameAr')} />
           </Field>
-          <Field id="edit-role" label={t('roster.edit.rank')}>
-            <select id="edit-role" className={inputClass} {...register('role')}>
-              {roster.assignableRoles.map((role) => (
-                <option key={role} value={role}>
-                  {t(`roles.${role}`)}
+          <Field id="edit-rank" label={t('roster.edit.rank')}>
+            <select id="edit-rank" className={inputClass} {...register('customRankId')}>
+              <option value="">{t('roster.import.noRank')}</option>
+              {ranks.map((rank) => (
+                <option key={rank.id} value={rank.id}>
+                  {rank.nameAr ?? rank.name}
                 </option>
               ))}
             </select>
@@ -125,70 +120,41 @@ export function EditMemberDialog({
               <option value="Suspended">{t('roster.status.Suspended')}</option>
             </select>
           </Field>
-          <Field id="edit-company" label={t('roster.edit.company')}>
-            <select
-              id="edit-company"
-              className={inputClass}
-              {...register('companyId', {
-                onChange: () => {
-                  setValue('branchId', '');
-                  setValue('teamId', '');
-                },
-              })}
-            >
-              <option value="">{t('common.none')}</option>
-              {roster.lookups.companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.name}
-                </option>
-              ))}
-            </select>
-            <div className="mt-2 flex gap-2">
-              <input value={newCompanyName} onChange={(event) => setNewCompanyName(event.target.value)} placeholder={t('roster.edit.newCompany')} className={`${inputClass} min-w-0 flex-1`} />
-              <Button type="button" variant="secondary" disabled={creatingCompany || !newCompanyName.trim()} onClick={async () => {
-                setCreatingCompany(true);
-                setCreateCompanyError(false);
-                try {
-                  const company = await onCreateCompany(newCompanyName.trim());
-                  setValue('companyId', company.id);
-                  setValue('branchId', '');
-                  setValue('teamId', '');
-                  setNewCompanyName('');
-                } catch {
-                  setCreateCompanyError(true);
-                } finally {
-                  setCreatingCompany(false);
-                }
-              }}>{creatingCompany ? t('roster.edit.creatingCompany') : t('roster.edit.addCompany')}</Button>
-            </div>
-            {createCompanyError && <p className="mt-1 text-xs text-error-700">{t('roster.edit.companyCreateFailed')}</p>}
-          </Field>
-          <Field id="edit-branch" label={t('roster.edit.branch')}>
-            <select
-              id="edit-branch"
-              className={inputClass}
-              disabled={!companyId}
-              {...register('branchId', { onChange: () => setValue('teamId', '') })}
-            >
-              <option value="">{t('common.none')}</option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field id="edit-team" label={t('roster.edit.team')} className="sm:col-span-2">
-            <select id="edit-team" className={inputClass} disabled={!branchId} {...register('teamId')}>
-              <option value="">{t('common.none')}</option>
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
-          </Field>
         </div>
+
+        {member && member.canManage && (
+          <div className="border-t border-neutral-200 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowCompanySection((v) => !v)}
+              className="text-sm font-medium text-primary-700 hover:text-primary-800"
+            >
+              {t('roster.edit.companyAssignment')}
+            </button>
+            {showCompanySection && (
+              <CompanySection
+                roster={roster}
+                newCompanyName={newCompanyName}
+                setNewCompanyName={setNewCompanyName}
+                creatingCompany={creatingCompany}
+                createCompanyError={createCompanyError}
+                onCreateCompany={async (name) => {
+                  setCreatingCompany(true);
+                  setCreateCompanyError(false);
+                  try {
+                    await onCreateCompany(name);
+                    setNewCompanyName('');
+                  } catch {
+                    setCreateCompanyError(true);
+                  } finally {
+                    setCreatingCompany(false);
+                  }
+                }}
+              />
+            )}
+          </div>
+        )}
+
         {error && (
           <p role="alert" className="rounded-lg bg-error-50 px-3 py-2 text-sm text-error-700">
             {t('roster.edit.saveFailed')}
@@ -267,18 +233,55 @@ export function EditMemberDialog({
   );
 }
 
+function CompanySection({
+  roster,
+  newCompanyName,
+  setNewCompanyName,
+  creatingCompany,
+  createCompanyError,
+  onCreateCompany,
+}: {
+  roster: RosterListResponse;
+  newCompanyName: string;
+  setNewCompanyName: (v: string) => void;
+  creatingCompany: boolean;
+  createCompanyError: boolean;
+  onCreateCompany: (name: string) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="mt-3 flex flex-col gap-2">
+      <p className="text-xs text-neutral-500">{t('roster.edit.companyHint')}</p>
+      <div className="flex gap-2">
+        <input
+          value={newCompanyName}
+          onChange={(event) => setNewCompanyName(event.target.value)}
+          placeholder={t('roster.edit.newCompany')}
+          className={`${inputClass} min-w-0 flex-1`}
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={creatingCompany || !newCompanyName.trim()}
+          onClick={() => void onCreateCompany(newCompanyName.trim())}
+        >
+          {creatingCompany ? t('roster.edit.creatingCompany') : t('roster.edit.addCompany')}
+        </Button>
+      </div>
+      {createCompanyError && <p className="mt-1 text-xs text-error-700">{t('roster.edit.companyCreateFailed')}</p>}
+    </div>
+  );
+}
+
 function emptyValues(): EditValues {
-  return { fullNameEn: '', fullNameAr: '', role: 'EMPLOYEE', companyId: '', branchId: '', teamId: '', status: 'Active' };
+  return { fullNameEn: '', fullNameAr: '', customRankId: '', status: 'Active' };
 }
 
 function valuesFor(member: RosterMember): EditValues {
   return {
     fullNameEn: member.fullNameEn,
     fullNameAr: member.fullNameAr ?? '',
-    role: member.role,
-    companyId: member.companyId ?? '',
-    branchId: member.branchId ?? '',
-    teamId: member.teamId ?? '',
+    customRankId: member.customRankId ?? '',
     status: member.status,
   };
 }

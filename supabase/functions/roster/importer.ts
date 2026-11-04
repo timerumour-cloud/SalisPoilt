@@ -17,6 +17,7 @@ interface ParsedRow {
   userId: string;
   email: string;
   status: "Active" | "Suspended";
+  customRankId: string | null;
 }
 
 interface RowIssue {
@@ -53,6 +54,7 @@ function parseRow(raw: unknown, index: number, issues: RowIssue[], fallbackCompa
     if (placement) issues.push({ line, code: placement });
   }
   if (issues.length > before || !role || !fullNameEn) return null;
+  const customRankId = typeof r.customRankId === "string" && r.customRankId.trim() ? r.customRankId.trim() : null;
   return {
     line,
     fullNameEn,
@@ -64,6 +66,7 @@ function parseRow(raw: unknown, index: number, issues: RowIssue[], fallbackCompa
     userId,
     email,
     status,
+    customRankId,
   };
 }
 
@@ -183,6 +186,7 @@ export async function importMembers(actor: MemberRow, body: Record<string, unkno
       team_id: teamId,
       status: r.status,
       roster_order: r.line,
+      custom_rank_id: r.customRankId,
       updated_at: new Date().toISOString(),
     };
     const current = byEmail.get(r.email);

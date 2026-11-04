@@ -8,8 +8,9 @@ import { ErrorState } from '@/shared/ui/ErrorState';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { inputClass } from '@/shared/ui/Field';
-import type { RosterMember, RosterMemberFields } from '@/features/roster/rosterApi';
-import { useCreateRosterCompany, useRemoveRosterMember, useResetMemberPassword, useRosterList, useUpdateRosterMember } from '@/features/roster/useRoster';
+import type { RosterMember } from '@/features/roster/rosterApi';
+import type { EditMemberSaveFields } from '@/features/roster/EditMemberDialog';
+import { useCreateRosterCompany, useRemoveRosterMember, useResetMemberPassword, useRanks, useRosterList, useUpdateRosterMember } from '@/features/roster/useRoster';
 import { RosterTable } from '@/features/roster/RosterTable';
 import { EditMemberDialog } from '@/features/roster/EditMemberDialog';
 import { RemoveMemberDialog } from '@/features/roster/RemoveMemberDialog';
@@ -20,6 +21,8 @@ export function RosterPage() {
   const { state } = useAuth();
   const member: RosterMember | null = state.status === 'ready' ? state.member : null;
   const rosterQuery = useRosterList(member?.id ?? 'unknown');
+  const ranksQuery = useRanks();
+  const ranks = ranksQuery.data?.ranks ?? [];
   const updateMutation = useUpdateRosterMember();
   const createCompanyMutation = useCreateRosterCompany();
   const removeMutation = useRemoveRosterMember();
@@ -53,9 +56,24 @@ export function RosterPage() {
     removeMutation.reset();
   };
 
-  const saveEdit = (fields: RosterMemberFields) => {
+  const saveEdit = (fields: EditMemberSaveFields) => {
     if (!editing) return;
-    updateMutation.mutate({ id: editing.id, fields }, { onSuccess: closeEdit });
+    updateMutation.mutate(
+      {
+        id: editing.id,
+        fields: {
+          fullNameEn: fields.fullNameEn,
+          fullNameAr: fields.fullNameAr,
+          role: editing.role,
+          status: fields.status,
+          companyId: editing.companyId,
+          branchId: editing.branchId,
+          teamId: editing.teamId,
+          customRankId: fields.customRankId,
+        },
+      },
+      { onSuccess: closeEdit },
+    );
   };
 
   const confirmRemove = () => {
@@ -115,7 +133,15 @@ export function RosterPage() {
           </p>
         )}
         {visibleMembers.length > 0 && (
-          <RosterTable members={visibleMembers} onEdit={setEditing} onRemove={setRemoving} />
+          <RosterTable
+            members={visibleMembers}
+            rankName={(m) => {
+              const rank = ranks.find((r) => r.id === m.customRankId);
+              return rank ? (rank.nameAr ?? rank.name) : null;
+            }}
+            onEdit={setEditing}
+            onRemove={setRemoving}
+          />
         )}
       </div>
 
@@ -123,6 +149,7 @@ export function RosterPage() {
         <EditMemberDialog
           member={editing}
           roster={roster}
+          ranks={ranks}
           pending={updateMutation.isPending}
           error={updateMutation.isError}
           onSave={saveEdit}
