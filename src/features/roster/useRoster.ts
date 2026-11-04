@@ -3,6 +3,7 @@ import {
   fetchRoster,
   createRosterCompany,
   removeRosterMember,
+  resetMemberPassword,
   updateRosterMember,
   type RosterMemberFields,
 } from '@/features/roster/rosterApi';
@@ -34,6 +35,15 @@ export function useRemoveRosterMember() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => removeRosterMember(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roster'] }),
+  });
+}
+
+export function useResetMemberPassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, email, newPassword }: { id: string; email: string; newPassword: string }) =>
+      resetMemberPassword(id, email, newPassword),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roster'] }),
   });
 }

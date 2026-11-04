@@ -269,7 +269,15 @@
       "branch": "Branch",
       "team": "Team",
       "saveFailed": "Could not save changes. Check the rank and place, then try again.",
-      "saving": "Saving..."
+      "saving": "Saving...",
+      "resetPassword": "Reset password",
+      "resetPasswordDescription": "Set a new temporary password. The person must choose their own at next sign-in.",
+      "newPassword": "New temporary password",
+      "newPasswordPlaceholder": "At least 8 characters",
+      "resetButton": "Reset password",
+      "resetting": "Resetting...",
+      "resetFailed": "Could not reset the password. Try again.",
+      "resetSuccess": "Password reset. The person will be asked to change it at next sign-in."
     },
     "remove": {
       "title": "Remove {{name}}?",

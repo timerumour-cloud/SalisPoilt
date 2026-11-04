@@ -160,6 +160,10 @@ export async function removeRosterMember(id: string): Promise<void> {
   await callRoster<{ ok: true }>({ action: 'remove', id });
 }
 
+export async function resetMemberPassword(id: string, email: string, newPassword: string): Promise<void> {
+  await callRoster<{ ok: true }>({ action: 'resetPassword', id, email, newPassword });
+}
+
 export async function previewRosterImport(rows: RosterImportRow[]): Promise<RosterImportPreview> {
   return callRoster<RosterImportPreview>({ action: 'import', rows, commit: false });
 }

@@ -58,6 +58,8 @@ export async function performAction(actor: MemberRow, body: Record<string, unkno
       return removeMember(actor, body);
     case "passwordChanged":
       return finishPasswordChange(actor);
+    case "resetPassword":
+      return resetMemberPassword(actor, body);
     case "profile":
       return updateProfile(actor, body);
     default:
@@ -244,8 +246,33 @@ async function updateProfile(actor: MemberRow, body: Record<string, unknown>) {
 async function finishPasswordChange(actor: MemberRow) {
   const { error } = await db
     .from("members")
-    .update({ must_change_password: false, updated_at: new Date().toISOString() })
+    .update({ must_change_password: false, temp_password: null, updated_at: new Date().toISOString() })
     .eq("id", actor.id);
+  if (error) throw error;
+  return { ok: true };
+}
+
+async function resetMemberPassword(actor: MemberRow, body: Record<string, unknown>) {
+  const id = optionalUuid(body.id, "id");
+  if (!id) throw new HttpError(422, "invalid_id");
+  const target = await loadMember(id);
+  if (target.id === actor.id) throw new HttpError(403, "cannot_edit_self");
+  if (!canManage(placementOf(actor), placementOf(target))) throw new HttpError(403, "forbidden");
+
+  const email = requireString(body.email, "email");
+  if (email !== target.email.toLowerCase()) throw new HttpError(422, "email_mismatch");
+
+  const newPassword = requireString(body.newPassword, "password");
+  if (newPassword.length < 8) throw new HttpError(422, "password_too_short");
+
+  const { error } = await db
+    .from("members")
+    .update({
+      temp_password: newPassword,
+      must_change_password: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
   if (error) throw error;
   return { ok: true };
 }

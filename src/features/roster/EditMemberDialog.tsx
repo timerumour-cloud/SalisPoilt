@@ -32,6 +32,10 @@ export function EditMemberDialog({
   error,
   onSave,
   onCreateCompany,
+  onResetPassword,
+  resetPasswordPending,
+  resetPasswordError,
+  resetPasswordSuccess,
   onOpenChange,
 }: {
   member: RosterMember | null;
@@ -40,12 +44,18 @@ export function EditMemberDialog({
   error: boolean;
   onSave: (fields: RosterMemberFields) => void;
   onCreateCompany: (name: string) => Promise<{ id: string; name: string }>;
+  onResetPassword: (newPassword: string) => Promise<void>;
+  resetPasswordPending: boolean;
+  resetPasswordError: boolean;
+  resetPasswordSuccess: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [newCompanyName, setNewCompanyName] = useState('');
   const [creatingCompany, setCreatingCompany] = useState(false);
   const [createCompanyError, setCreateCompanyError] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
   const {
     register,
     handleSubmit,
@@ -57,6 +67,8 @@ export function EditMemberDialog({
 
   useEffect(() => {
     reset(member ? valuesFor(member) : emptyValues());
+    setShowReset(false);
+    setNewPassword('');
   }, [member, reset]);
 
   const companyId = watch('companyId');
@@ -181,6 +193,66 @@ export function EditMemberDialog({
           <p role="alert" className="rounded-lg bg-error-50 px-3 py-2 text-sm text-error-700">
             {t('roster.edit.saveFailed')}
           </p>
+        )}
+        {member && member.canManage && (
+          <div className="border-t border-neutral-200 pt-4">
+            {!showReset ? (
+              <button
+                type="button"
+                onClick={() => setShowReset(true)}
+                className="text-sm font-medium text-primary-700 hover:text-primary-800"
+              >
+                {t('roster.edit.resetPassword')}
+              </button>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div>
+                  <p className="text-sm text-neutral-600">{t('roster.edit.resetPasswordDescription')}</p>
+                </div>
+                <Field id="reset-password" label={t('roster.edit.newPassword')}>
+                  <input
+                    id="reset-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder={t('roster.edit.newPasswordPlaceholder')}
+                    className={inputClass}
+                    autoComplete="new-password"
+                  />
+                </Field>
+                {resetPasswordError && (
+                  <p role="alert" className="rounded-lg bg-error-50 px-3 py-2 text-sm text-error-700">
+                    {t('roster.edit.resetFailed')}
+                  </p>
+                )}
+                {resetPasswordSuccess && (
+                  <p role="status" className="rounded-lg bg-success-50 px-3 py-2 text-sm text-success-700">
+                    {t('roster.edit.resetSuccess')}
+                  </p>
+                )}
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => { setShowReset(false); setNewPassword(''); }}
+                    disabled={resetPasswordPending}
+                  >
+                    {t('common.cancel')}
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={resetPasswordPending || newPassword.length < 8}
+                    onClick={async () => {
+                      await onResetPassword(newPassword);
+                      setNewPassword('');
+                    }}
+                  >
+                    {resetPasswordPending ? t('roster.edit.resetting') : t('roster.edit.resetButton')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button variant="secondary" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
