@@ -46,7 +46,6 @@ function parseRow(raw: unknown, index: number, issues: RowIssue[]): ParsedRow | 
   if (!EMAIL_PATTERN.test(email)) issues.push({ line, code: "invalid_email" });
   if (!USER_ID_PATTERN.test(userId)) issues.push({ line, code: "invalid_user_id" });
   if (!role) issues.push({ line, code: "invalid_role" });
-  if (branch && !company) issues.push({ line, code: "branch_without_company" });
   if (team && !branch) issues.push({ line, code: "team_without_branch" });
   if (role) {
     const placement = placementError({ role, companyId: company, branchId: branch, teamId: team });
@@ -110,6 +109,18 @@ export async function importMembers(actor: MemberRow, body: Record<string, unkno
   const { data: companyData, error: companyError } = await db.from("companies").select("id, name");
   if (companyError) throw companyError;
   for (const c of companyData ?? []) companyIds.set(c.name, c.id);
+
+  // When rows have a branch but no company, use the actor's company.
+  const fallbackCompanyId = actor.company_id;
+  const fallbackCompanyName = companyData?.find((c: { id: string }) => c.id === fallbackCompanyId)?.name ?? null;
+  if (fallbackCompanyName) companyIds.set(fallbackCompanyName, fallbackCompanyId as string);
+
+  for (const r of rows) {
+    if (!r.company && r.branch && fallbackCompanyId) {
+      r.company = fallbackCompanyName ?? null;
+    }
+  }
+
   for (const name of new Set(rows.map((r) => r.company).filter((n): n is string => !!n))) {
     if (companyIds.has(name)) continue;
     const { data, error } = await db.from("companies").insert({ name }).select("id").single();

@@ -51,23 +51,27 @@ function toStatus(value: string): RosterStatus {
 }
 
 function toRosterRow(record: Record<string, unknown>, line: number): RosterFileRow | null {
-  const fullNameEn = firstCell(record, 'Full Name (EN)', 'Full Name', 'الاسم (EN)');
-  const email = cell(record, 'Email');
+  const fullNameEn = firstCell(
+    record,
+    'Full Name (EN)', 'Full Name', 'الاسم (EN)', 'اسم الموظف بالانجليزي', 'الاسم بالانجليزي', 'الاسم بالإنجليزي',
+  );
+  const email = firstCell(record, 'Email', 'الايميل', 'الإيميل', 'البريد', 'البريد الالكتروني', 'البريد الإلكتروني');
   if (!fullNameEn && !email) return null;
+  const role = firstCell(record, 'Role', 'الرتبة', 'الدور', 'المسمى', 'المسمى الوظيفي');
   return {
     row: {
       line,
       fullNameEn,
-      fullNameAr: optionalFirstCell(record, 'الاسم (AR)', 'Full Name (AR)'),
-      role: firstCell(record, 'Role', 'الرتبة'),
+      fullNameAr: optionalFirstCell(record, 'الاسم (AR)', 'Full Name (AR)', 'اسم الموظف بالعربي', 'الاسم بالعربي'),
+      role: role || 'EMPLOYEE',
       company: optionalFirstCell(record, 'Company', 'الشركة'),
-      branch: optionalFirstCell(record, 'Branch', 'الفرع'),
-      team: optionalFirstCell(record, 'Team', 'الفريق'),
-      userId: firstCell(record, 'User ID', 'UserID', 'User Id', 'رقم المستخدم', 'معرف المستخدم'),
+      branch: optionalFirstCell(record, 'Branch', 'الفرع', 'الفرع '),
+      team: optionalFirstCell(record, 'Team', 'الفريق', 'الفريق '),
+      userId: firstCell(record, 'User ID', 'UserID', 'User Id', 'رقم المستخدم', 'معرف المستخدم', 'اليوزر أي دي', 'اليوزر اي دي', 'رقم الموظف', 'الكود'),
       email,
-      status: toStatus(cell(record, 'Status')),
+      status: toStatus(firstCell(record, 'Status', 'الحالة', 'الحاله')),
     },
-    password: passwordCell(record),
+    password: firstCell(record, 'Password', 'الباسوورد', 'كلمة المرور', 'كلمه المرور', 'الرقم السري') || null,
   };
 }
 
