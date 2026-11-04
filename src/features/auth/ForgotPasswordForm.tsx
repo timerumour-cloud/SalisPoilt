@@ -1,0 +1,81 @@
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useTranslation } from 'react-i18next';
+import { Button } from '@/shared/ui/Button';
+import { Field, inputClass } from '@/shared/ui/Field';
+import { firebaseErrorCode } from '@/shared/auth/firebase';
+import { useAuth } from '@/features/auth/useAuth';
+
+const schema = z.object({
+  email: z.string().trim().email(),
+});
+
+type ForgotPasswordValues = z.infer<typeof schema>;
+
+type ResetStatus = 'idle' | 'sent' | 'network' | 'unknown';
+
+export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
+  const { sendPasswordReset } = useAuth();
+  const [status, setStatus] = useState<ResetStatus>('idle');
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ForgotPasswordValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: '' },
+  });
+
+  const onSubmit = async (values: ForgotPasswordValues) => {
+    setStatus('idle');
+    try {
+      await sendPasswordReset(values.email);
+      setStatus('sent');
+    } catch (error) {
+      const code = firebaseErrorCode(error);
+      if (code === 'auth/user-not-found') setStatus('sent');
+      else if (code === 'auth/network-request-failed') setStatus('network');
+      else setStatus('unknown');
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
+        <Field
+          id="reset-email"
+          label={t('auth.signIn.email')}
+          error={errors.email && t('auth.errors.emailInvalid')}
+        >
+          <input
+            id="reset-email"
+            type="email"
+            autoComplete="email"
+            dir="ltr"
+            className={inputClass}
+            {...register('email')}
+          />
+        </Field>
+        {status === 'sent' && (
+          <p role="status" className="rounded-lg bg-success-50 px-3 py-2 text-sm text-success-700">
+            {t('auth.forgot.sent')}
+          </p>
+        )}
+        {(status === 'network' || status === 'unknown') && (
+          <p role="alert" className="rounded-lg bg-error-50 px-3 py-2 text-sm text-error-700">
+            {t(`auth.errors.${status}`)}
+          </p>
+        )}
+        <Button type="submit" disabled={isSubmitting} className="w-full">
+          {isSubmitting ? t('auth.forgot.submitting') : t('auth.forgot.submit')}
+        </Button>
+      </form>
+      <Button variant="ghost" onClick={onBack} className="w-full">
+        {t('auth.forgot.back')}
+      </Button>
+    </div>
+  );
+}
