@@ -28,7 +28,7 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function parseRow(raw: unknown, index: number, issues: RowIssue[]): ParsedRow | null {
+function parseRow(raw: unknown, index: number, issues: RowIssue[], fallbackCompany: string | null): ParsedRow | null {
   const r = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
   const line = typeof r.line === "number" ? r.line : index + 1;
   const before = issues.length;
@@ -36,7 +36,8 @@ function parseRow(raw: unknown, index: number, issues: RowIssue[]): ParsedRow | 
   const email = text(r.email)?.toLowerCase() ?? "";
   const userId = text(r.userId) ?? "";
   const role = parseAssignableRole(text(r.role) ?? "");
-  const company = text(r.company);
+  const rawCompany = text(r.company);
+  const company = rawCompany ?? fallbackCompany;
   const branch = text(r.branch);
   const team = text(r.team);
   const statusText = text(r.status)?.toLowerCase() ?? "";
@@ -72,10 +73,17 @@ export async function importMembers(actor: MemberRow, body: Record<string, unkno
   }
   const commit = body.commit === true;
 
+  // Resolve the actor's company name so rows without a company column can default to it.
+  let fallbackCompanyName: string | null = null;
+  if (actor.company_id) {
+    const { data: actorCompany } = await db.from("companies").select("name").eq("id", actor.company_id).maybeSingle();
+    fallbackCompanyName = actorCompany?.name ?? null;
+  }
+
   const issues: RowIssue[] = [];
   const rows: ParsedRow[] = [];
   body.rows.forEach((raw, index) => {
-    const parsed = parseRow(raw, index, issues);
+    const parsed = parseRow(raw, index, issues, fallbackCompanyName);
     if (parsed) rows.push(parsed);
   });
 
@@ -109,17 +117,6 @@ export async function importMembers(actor: MemberRow, body: Record<string, unkno
   const { data: companyData, error: companyError } = await db.from("companies").select("id, name");
   if (companyError) throw companyError;
   for (const c of companyData ?? []) companyIds.set(c.name, c.id);
-
-  // When rows have a branch but no company, use the actor's company.
-  const fallbackCompanyId = actor.company_id;
-  const fallbackCompanyName = companyData?.find((c: { id: string }) => c.id === fallbackCompanyId)?.name ?? null;
-  if (fallbackCompanyName) companyIds.set(fallbackCompanyName, fallbackCompanyId as string);
-
-  for (const r of rows) {
-    if (!r.company && r.branch && fallbackCompanyId) {
-      r.company = fallbackCompanyName ?? null;
-    }
-  }
 
   for (const name of new Set(rows.map((r) => r.company).filter((n): n is string => !!n))) {
     if (companyIds.has(name)) continue;
