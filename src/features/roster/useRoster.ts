@@ -3,11 +3,18 @@ import {
   fetchRoster,
   createRosterCompany,
   createCompanyWithAdmin,
+  createBranch,
   removeRosterMember,
   resetMemberPassword,
   updateRosterMember,
+  listRanks,
+  createRank,
+  updateRank,
+  deleteRank,
+  listPasswordRequests,
+  createPasswordRequest,
+  reviewPasswordRequest,
   type CreateCompanyWithAdminInput,
-  type CreateCompanyWithAdminResult,
   type RosterMemberFields,
 } from '@/features/roster/rosterApi';
 
@@ -56,5 +63,62 @@ export function useResetMemberPassword() {
     mutationFn: ({ id, email, newPassword }: { id: string; email: string; newPassword: string }) =>
       resetMemberPassword(id, email, newPassword),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roster'] }),
+  });
+}
+
+export function useCreateBranch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, companyId }: { name: string; companyId?: string }) => createBranch(name, companyId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roster'] }),
+  });
+}
+
+export function useRanks() {
+  return useQuery({ queryKey: ['ranks'], queryFn: listRanks });
+}
+
+export function useCreateRank() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createRank,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ranks'] }),
+  });
+}
+
+export function useUpdateRank() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateRank,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ranks'] }),
+  });
+}
+
+export function useDeleteRank() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteRank,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ranks'] }),
+  });
+}
+
+export function usePasswordRequests() {
+  return useQuery({ queryKey: ['password-requests'], queryFn: listPasswordRequests });
+}
+
+export function useCreatePasswordRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createPasswordRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['password-requests'] }),
+  });
+}
+
+export function useReviewPasswordRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: 'approved' | 'rejected' }) =>
+      reviewPasswordRequest(id, decision),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['password-requests'] }),
   });
 }

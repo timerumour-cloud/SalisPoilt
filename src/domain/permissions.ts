@@ -45,6 +45,7 @@ export const ACTIONS = [
   'audit.view',
   'notification.view',
   'account.manage',
+  'password.approve',
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 
@@ -125,6 +126,7 @@ export const PERMISSION_MATRIX: Matrix = {
   'audit.view': COMPANY_ADMIN_ONLY,
   'notification.view': { ...TENANT_ROLES_ALL },
   'account.manage': { ...TENANT_ROLES_ALL, SUPER_ADMIN: 'platform' },
+  'password.approve': COMPANY_ADMIN_ONLY,
 };
 
 function matchesScope(user: SessionUser, scope: PermissionScope, resource: PermissionResource | undefined): boolean {

@@ -368,5 +368,69 @@
     "adminUserId": "Admin User ID",
     "provisionWarning": "The company and admin record were saved, but the sign-in account could not be created right now. You can create it manually in Firebase.",
     "firstLoginNote": "The admin must sign in with the temporary password and choose a new one before using SalesPilot."
+  },
+  "branchesPage": {
+    "title": "Branches",
+    "description": "Add one or more branches for your company.",
+    "add": "Add branch",
+    "emptyTitle": "No branches yet",
+    "emptyBody": "Add your first branch to start organizing your team.",
+    "membersCount": "{{count}} people",
+    "branch": "Branch",
+    "addTitle": "Add a new branch",
+    "fieldName": "Branch name",
+    "addFailed": "Could not create the branch. Try again."
+  },
+  "ranksPage": {
+    "title": "Ranks",
+    "description": "Create ranks and assign their permissions.",
+    "add": "Add rank",
+    "emptyTitle": "No ranks yet",
+    "emptyBody": "Create your first rank and assign its permissions.",
+    "level": "Level {{level}}",
+    "addTitle": "Add a new rank",
+    "editTitle": "Edit rank",
+    "addDescription": "Name the rank, set its level, and choose what it can do.",
+    "fieldName": "Rank name (English)",
+    "fieldNameAr": "Rank name (Arabic)",
+    "fieldLevel": "Level",
+    "permissionsLabel": "Permissions",
+    "saveFailed": "Could not save the rank. Try again.",
+    "deleteTitle": "Delete rank",
+    "deleteConfirm": "Are you sure you want to delete \"{{name}}\"? Members with this rank will lose its permissions.",
+    "deleteFailed": "Could not delete the rank. Try again.",
+    "permissions": {
+      "branch.manage": "Manage branches",
+      "employee.import": "Import employees (Excel)",
+      "target.import": "Import sales targets (Excel)",
+      "sale.create": "Enter daily sales",
+      "sale.approve": "Approve sales",
+      "employee.promote": "Promote employees",
+      "employee.suspend": "Suspend / deactivate employees",
+      "employee.revoke": "Revoke employee permissions",
+      "employee.transfer": "Transfer employee between branches",
+      "password.approve": "Approve password change requests",
+      "performance.review": "Review employee performance"
+    }
+  },
+  "passwordRequests": {
+    "title": "Password change requests",
+    "description": "Review requests from employees who cannot reset their password by email.",
+    "emptyTitle": "No requests",
+    "emptyBody": "When an employee requests a password change, it will appear here for your approval.",
+    "approve": "Approve",
+    "reject": "Reject",
+    "columns": {
+      "employee": "Employee",
+      "userId": "User ID",
+      "requestedAt": "Requested",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    }
   }
 }

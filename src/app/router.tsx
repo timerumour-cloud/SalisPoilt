@@ -3,6 +3,9 @@ import { NAV_ITEMS } from '@/app/navigation';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { RequirePermission } from '@/app/guards/RequirePermission';
 import { CompaniesPage } from '@/features/companies/CompaniesPage';
+import { BranchesPage } from '@/features/branches/BranchesPage';
+import { RanksPage } from '@/features/ranks/RanksPage';
+import { PasswordRequestsPage } from '@/features/passwordRequests/PasswordRequestsPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { NotFoundPage } from '@/app/pages/NotFoundPage';
 import { SectionPlaceholderPage } from '@/app/pages/SectionPlaceholderPage';
@@ -20,9 +23,13 @@ const sectionRoutes: RouteObject[] = NAV_ITEMS.map((item) => {
       : item.key === 'companies'
       ? <CompaniesPage />
       : item.key === 'branches'
-        ? <OrganizationPage section="branches" />
-        : item.key === 'teams'
-          ? <OrganizationPage section="teams" />
+      ? <BranchesPage />
+      : item.key === 'ranks'
+      ? <RanksPage />
+      : item.key === 'passwordRequests'
+      ? <PasswordRequestsPage />
+      : item.key === 'teams'
+        ? <OrganizationPage section="teams" />
     : item.key === 'settings'
         ? <SettingsPage />
         : item.key === 'profile'

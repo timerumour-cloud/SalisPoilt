@@ -64,6 +64,22 @@ export async function performAction(actor: MemberRow, body: Record<string, unkno
       return resetMemberPassword(actor, body);
     case "profile":
       return updateProfile(actor, body);
+    case "createBranch":
+      return createBranch(actor, body);
+    case "listRanks":
+      return listRanks(actor);
+    case "createRank":
+      return createRank(actor, body);
+    case "updateRank":
+      return updateRank(actor, body);
+    case "deleteRank":
+      return deleteRank(actor, body);
+    case "listPasswordRequests":
+      return listPasswordRequests(actor);
+    case "createPasswordRequest":
+      return createPasswordRequest(actor, body);
+    case "reviewPasswordRequest":
+      return reviewPasswordRequest(actor, body);
     default:
       throw new HttpError(400, "unknown_action");
   }
@@ -332,5 +348,212 @@ async function resetMemberPassword(actor: MemberRow, body: Record<string, unknow
     })
     .eq("id", id);
   if (error) throw error;
+  return { ok: true };
+}
+
+// ── Branches ──────────────────────────────────────────────────
+
+async function createBranch(actor: MemberRow, body: Record<string, unknown>) {
+  if (!actor.company_id) throw new HttpError(403, "forbidden");
+  if (actor.role !== "COMPANY_ADMIN" && !isPlatformRole(actor.role)) throw new HttpError(403, "forbidden");
+  const name = requireString(body.name, "branch");
+  const companyId = isPlatformRole(actor.role) ? optionalUuid(body.companyId, "company") : actor.company_id;
+  if (!companyId) throw new HttpError(422, "invalid_company");
+  const { data, error } = await db
+    .from("branches").insert({ name, company_id: companyId }).select("id, company_id, name").maybeSingle();
+  if (error) throw error;
+  if (!data) throw new HttpError(422, "invalid_branch");
+  return { branch: data };
+}
+
+// ── Custom Ranks ──────────────────────────────────────────────
+
+const VALID_PERMISSIONS = [
+  "branch.manage",
+  "employee.import",
+  "target.import",
+  "sale.create",
+  "sale.approve",
+  "employee.promote",
+  "employee.suspend",
+  "employee.revoke",
+  "employee.transfer",
+  "password.approve",
+  "performance.review",
+] as const;
+
+function assertCompanyAdmin(actor: MemberRow) {
+  if (actor.role !== "COMPANY_ADMIN" && !isPlatformRole(actor.role)) throw new HttpError(403, "forbidden");
+  if (!actor.company_id && !isPlatformRole(actor.role)) throw new HttpError(403, "forbidden");
+}
+
+function rankCompanyId(actor: MemberRow, body: Record<string, unknown>): string {
+  if (isPlatformRole(actor.role)) {
+    const id = optionalUuid(body.companyId, "company");
+    if (!id) throw new HttpError(422, "invalid_company");
+    return id;
+  }
+  return actor.company_id as string;
+}
+
+async function listRanks(actor: MemberRow) {
+  assertCompanyAdmin(actor);
+  const cid = isPlatformRole(actor.role) ? null : actor.company_id;
+  let query = db.from("custom_ranks").select("id, company_id, name, name_ar, rank_level, created_at").order("rank_level", { ascending: false });
+  if (cid) query = query.eq("company_id", cid);
+  const { data: ranks, error } = await query;
+  if (error) throw error;
+  if (!ranks || ranks.length === 0) return { ranks: [] };
+  const rankIds = ranks.map((r: { id: string }) => r.id);
+  const { data: perms, error: permError } = await db
+    .from("rank_permissions").select("rank_id, permission").in("rank_id", rankIds);
+  if (permError) throw permError;
+  const permMap = new Map<string, string[]>();
+  for (const p of (perms ?? []) as { rank_id: string; permission: string }[]) {
+    const arr = permMap.get(p.rank_id) ?? [];
+    arr.push(p.permission);
+    permMap.set(p.rank_id, arr);
+  }
+  return {
+    ranks: ranks.map((r: { id: string; company_id: string; name: string; name_ar: string | null; rank_level: number; created_at: string }) => ({
+      id: r.id,
+      companyId: r.company_id,
+      name: r.name,
+      nameAr: r.name_ar,
+      rankLevel: r.rank_level,
+      permissions: permMap.get(r.id) ?? [],
+      createdAt: r.created_at,
+    })),
+  };
+}
+
+async function createRank(actor: MemberRow, body: Record<string, unknown>) {
+  assertCompanyAdmin(actor);
+  const name = requireString(body.name, "rank_name");
+  const nameAr = optionalString(body.nameAr);
+  const rankLevel = typeof body.rankLevel === "number" ? body.rankLevel : 20;
+  const cid = rankCompanyId(actor, body);
+  const permissions = Array.isArray(body.permissions) ? body.permissions : [];
+  for (const p of permissions) {
+    if (!VALID_PERMISSIONS.includes(p as (typeof VALID_PERMISSIONS)[number])) throw new HttpError(422, "invalid_permission");
+  }
+  const { data: rank, error: rankError } = await db
+    .from("custom_ranks").insert({ name, name_ar: nameAr, rank_level: rankLevel, company_id: cid }).select("id").maybeSingle();
+  if (rankError) throw rankError;
+  if (!rank) throw new HttpError(422, "invalid_rank");
+  if (permissions.length > 0) {
+    const rows = permissions.map((p: string) => ({ rank_id: rank.id, permission: p }));
+    const { error: permError } = await db.from("rank_permissions").insert(rows);
+    if (permError) throw permError;
+  }
+  return { rankId: rank.id };
+}
+
+async function updateRank(actor: MemberRow, body: Record<string, unknown>) {
+  assertCompanyAdmin(actor);
+  const id = optionalUuid(body.id, "id");
+  if (!id) throw new HttpError(422, "invalid_id");
+  const cid = isPlatformRole(actor.role) ? null : actor.company_id;
+  let checkQuery = db.from("custom_ranks").select("id, company_id").eq("id", id);
+  if (cid) checkQuery = checkQuery.eq("company_id", cid);
+  const { data: existing, error: checkError } = await checkQuery.maybeSingle();
+  if (checkError) throw checkError;
+  if (!existing) throw new HttpError(404, "not_found");
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (typeof body.name === "string" && body.name.trim()) updates.name = body.name.trim();
+  if (typeof body.nameAr === "string") updates.name_ar = body.nameAr.trim() || null;
+  if (typeof body.rankLevel === "number") updates.rank_level = body.rankLevel;
+  if (Object.keys(updates).length > 1) {
+    const { error: updateError } = await db.from("custom_ranks").update(updates).eq("id", id);
+    if (updateError) throw updateError;
+  }
+  if (Array.isArray(body.permissions)) {
+    for (const p of body.permissions) {
+      if (!VALID_PERMISSIONS.includes(p as (typeof VALID_PERMISSIONS)[number])) throw new HttpError(422, "invalid_permission");
+    }
+    const { error: delError } = await db.from("rank_permissions").delete().eq("rank_id", id);
+    if (delError) throw delError;
+    if (body.permissions.length > 0) {
+      const rows = (body.permissions as string[]).map((p) => ({ rank_id: id, permission: p }));
+      const { error: insError } = await db.from("rank_permissions").insert(rows);
+      if (insError) throw insError;
+    }
+  }
+  return { ok: true };
+}
+
+async function deleteRank(actor: MemberRow, body: Record<string, unknown>) {
+  assertCompanyAdmin(actor);
+  const id = optionalUuid(body.id, "id");
+  if (!id) throw new HttpError(422, "invalid_id");
+  const cid = isPlatformRole(actor.role) ? null : actor.company_id;
+  let checkQuery = db.from("custom_ranks").select("id, company_id").eq("id", id);
+  if (cid) checkQuery = checkQuery.eq("company_id", cid);
+  const { data: existing, error: checkError } = await checkQuery.maybeSingle();
+  if (checkError) throw checkError;
+  if (!existing) throw new HttpError(404, "not_found");
+  const { error } = await db.from("custom_ranks").delete().eq("id", id);
+  if (error) throw error;
+  return { ok: true };
+}
+
+// ── Password Change Requests ──────────────────────────────────
+
+async function listPasswordRequests(actor: MemberRow) {
+  if (actor.role === "EMPLOYEE") throw new HttpError(403, "forbidden");
+  const cid = isPlatformRole(actor.role) ? null : actor.company_id;
+  let query = db
+    .from("password_change_requests")
+    .select("id, member_id, company_id, status, requested_at, reviewed_at, reviewed_by, note, members(full_name_en, email, user_id)")
+    .order("requested_at", { ascending: false });
+  if (cid) query = query.eq("company_id", cid);
+  const { data, error } = await query;
+  if (error) throw error;
+  return { requests: data ?? [] };
+}
+
+async function createPasswordRequest(actor: MemberRow, _body: Record<string, unknown>) {
+  if (!actor.company_id) throw new HttpError(403, "forbidden");
+  const { data: existing } = await db
+    .from("password_change_requests")
+    .select("id")
+    .eq("member_id", actor.id)
+    .eq("status", "pending")
+    .maybeSingle();
+  if (existing) throw new HttpError(422, "request_already_pending");
+  const { error } = await db.from("password_change_requests").insert({
+    member_id: actor.id,
+    company_id: actor.company_id,
+    status: "pending",
+  });
+  if (error) throw error;
+  return { ok: true };
+}
+
+async function reviewPasswordRequest(actor: MemberRow, body: Record<string, unknown>) {
+  if (actor.role === "EMPLOYEE") throw new HttpError(403, "forbidden");
+  const id = optionalUuid(body.id, "id");
+  if (!id) throw new HttpError(422, "invalid_id");
+  const decision = requireString(body.decision, "decision");
+  if (decision !== "approved" && decision !== "rejected") throw new HttpError(422, "invalid_decision");
+  const cid = isPlatformRole(actor.role) ? null : actor.company_id;
+  let checkQuery = db.from("password_change_requests").select("id, company_id, member_id, status").eq("id", id).eq("status", "pending");
+  if (cid) checkQuery = checkQuery.eq("company_id", cid);
+  const { data: req, error: checkError } = await checkQuery.maybeSingle();
+  if (checkError) throw checkError;
+  if (!req) throw new HttpError(404, "not_found");
+  const { error } = await db.from("password_change_requests").update({
+    status: decision,
+    reviewed_at: new Date().toISOString(),
+    reviewed_by: actor.id,
+  }).eq("id", id);
+  if (error) throw error;
+  if (decision === "approved") {
+    await db.from("members").update({
+      must_change_password: true,
+      temp_password: null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", (req as { member_id: string }).member_id);
+  }
   return { ok: true };
 }

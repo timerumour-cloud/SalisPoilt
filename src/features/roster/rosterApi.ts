@@ -182,6 +182,91 @@ export async function resetMemberPassword(id: string, email: string, newPassword
   await callRoster<{ ok: true }>({ action: 'resetPassword', id, email, newPassword });
 }
 
+// ── Branches ──────────────────────────────────────────────────
+export async function createBranch(name: string, companyId?: string): Promise<{ id: string; company_id: string; name: string }> {
+  const { branch } = await callRoster<{ branch: { id: string; company_id: string; name: string } }>({ action: 'createBranch', name, companyId });
+  return branch;
+}
+
+// ── Custom Ranks ──────────────────────────────────────────────
+export interface CustomRank {
+  id: string;
+  companyId: string;
+  name: string;
+  nameAr: string | null;
+  rankLevel: number;
+  permissions: string[];
+  createdAt: string;
+}
+
+export const RANK_PERMISSIONS = [
+  'branch.manage',
+  'employee.import',
+  'target.import',
+  'sale.create',
+  'sale.approve',
+  'employee.promote',
+  'employee.suspend',
+  'employee.revoke',
+  'employee.transfer',
+  'password.approve',
+  'performance.review',
+] as const;
+export type RankPermission = (typeof RANK_PERMISSIONS)[number];
+
+export async function listRanks(): Promise<{ ranks: CustomRank[] }> {
+  return callRoster<{ ranks: CustomRank[] }>({ action: 'listRanks' });
+}
+
+export async function createRank(input: {
+  name: string;
+  nameAr?: string | null;
+  rankLevel: number;
+  permissions: string[];
+  companyId?: string;
+}): Promise<{ rankId: string }> {
+  return callRoster<{ rankId: string }>({ action: 'createRank', ...input });
+}
+
+export async function updateRank(input: {
+  id: string;
+  name?: string;
+  nameAr?: string | null;
+  rankLevel?: number;
+  permissions?: string[];
+}): Promise<void> {
+  await callRoster<{ ok: true }>({ action: 'updateRank', ...input });
+}
+
+export async function deleteRank(id: string): Promise<void> {
+  await callRoster<{ ok: true }>({ action: 'deleteRank', id });
+}
+
+// ── Password Change Requests ──────────────────────────────────
+export interface PasswordChangeRequest {
+  id: string;
+  member_id: string;
+  company_id: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  requested_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  note: string | null;
+  members: { full_name_en: string; email: string; user_id: string } | null;
+}
+
+export async function listPasswordRequests(): Promise<{ requests: PasswordChangeRequest[] }> {
+  return callRoster<{ requests: PasswordChangeRequest[] }>({ action: 'listPasswordRequests' });
+}
+
+export async function createPasswordRequest(): Promise<void> {
+  await callRoster<{ ok: true }>({ action: 'createPasswordRequest' });
+}
+
+export async function reviewPasswordRequest(id: string, decision: 'approved' | 'rejected'): Promise<void> {
+  await callRoster<{ ok: true }>({ action: 'reviewPasswordRequest', id, decision });
+}
+
 export async function previewRosterImport(rows: RosterImportRow[]): Promise<RosterImportPreview> {
   return callRoster<RosterImportPreview>({ action: 'import', rows, commit: false });
 }
