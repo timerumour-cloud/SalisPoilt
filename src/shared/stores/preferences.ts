@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type AppLanguage = 'en' | 'ar';
-export type DigitStyle = 'latin' | 'arabic-indic';
+export type DigitStyle = 'latin';
 export type Appearance = 'light' | 'dark';
 export type ThemeName = 'ocean' | 'forest' | 'sunset' | 'slate' | 'rose' | 'sand' | 'midnight';
 
@@ -61,6 +61,7 @@ export const usePreferences = create<PreferencesState>()(
           ...state,
           activeUserId: userId,
           ...(state.profiles[userId] ?? defaults),
+          digits: 'latin',
         })),
       setLanguage: (language) => set(updateProfile('language', language)),
       setDigits: (digits) => set(updateProfile('digits', digits)),

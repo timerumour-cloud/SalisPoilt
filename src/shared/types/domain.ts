@@ -122,4 +122,7 @@ export interface SessionUser {
   displayName: string;
   branchIds: string[];
   teamId: string | null;
+  customRankId?: string | null;
+  customRankName?: string | null;
+  customRankPermissions?: string[];
 }

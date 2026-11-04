@@ -36,6 +36,8 @@ export function toMemberDto(row: MemberRow, manageable: boolean) {
     teamId: row.team_id,
     teamName: row.teams?.name ?? null,
     customRankId: row.custom_rank_id ?? null,
+    customRankName: row.custom_ranks?.name_ar ?? row.custom_ranks?.name ?? null,
+    customRankPermissions: row.custom_ranks?.rank_permissions?.map((item) => item.permission) ?? [],
     canManage: manageable,
   };
 }
@@ -67,6 +69,10 @@ export async function performAction(actor: MemberRow, body: Record<string, unkno
       return updateProfile(actor, body);
     case "createBranch":
       return createBranch(actor, body);
+    case "updateBranch":
+      return updateBranch(actor, body);
+    case "deleteBranch":
+      return deleteBranch(actor, body);
     case "listRanks":
       return listRanks(actor);
     case "createRank":
@@ -109,6 +115,10 @@ async function loadMember(id: string): Promise<MemberRow> {
   return data as MemberRow;
 }
 
+function hasCustomPermission(actor: MemberRow, permission: string): boolean {
+  return actor.custom_ranks?.rank_permissions?.some((item) => item.permission === permission) ?? false;
+}
+
 function scopedMembersQuery(actor: MemberRow) {
   const query = db
     .from("members")
@@ -118,6 +128,9 @@ function scopedMembersQuery(actor: MemberRow) {
   if (isPlatformRole(actor.role)) return query;
   if (actor.role === "COMPANY_ADMIN" && actor.company_id) return query.eq("company_id", actor.company_id);
   if (actor.role === "BRANCH_MANAGER" && actor.branch_id) return query.eq("branch_id", actor.branch_id);
+  if (actor.company_id && (hasCustomPermission(actor, "employee.view") || hasCustomPermission(actor, "employee.import") || hasCustomPermission(actor, "employee.transfer"))) {
+    return query.eq("company_id", actor.company_id);
+  }
   if (actor.role === "TEAM_LEADER" && actor.team_id) return query.eq("team_id", actor.team_id);
   return query.eq("id", actor.id);
 }
@@ -126,8 +139,9 @@ async function listMembers(actor: MemberRow) {
   const { data, error } = await scopedMembersQuery(actor);
   if (error) throw error;
   const me = placementOf(actor);
+  const customCanManage = hasCustomPermission(actor, "employee.promote") || hasCustomPermission(actor, "employee.suspend") || hasCustomPermission(actor, "employee.revoke") || hasCustomPermission(actor, "employee.transfer");
   const members = ((data ?? []) as MemberRow[]).map((row) =>
-    toMemberDto(row, row.id !== actor.id && canManage(me, placementOf(row)))
+    toMemberDto(row, row.id !== actor.id && (customCanManage ? row.company_id === actor.company_id : canManage(me, placementOf(row))))
   );
   return {
     members,
@@ -138,9 +152,21 @@ async function listMembers(actor: MemberRow) {
 
 async function loadLookups(actor: MemberRow) {
   const empty = { companies: [], branches: [], teams: [] };
-  if (actor.role === "EMPLOYEE") return empty;
+  if (actor.role === "EMPLOYEE" && !hasCustomPermission(actor, "employee.view") && !hasCustomPermission(actor, "employee.import")) return empty;
   const platform = isPlatformRole(actor.role);
   if (!platform && !actor.company_id) return empty;
+  if (actor.role === "EMPLOYEE" && actor.company_id) {
+    const { data: companyData, error: companyError } = await db.from("companies").select("id, name, trade_license").eq("id", actor.company_id);
+    if (companyError) throw companyError;
+    const { data: branchData, error: branchError } = await db.from("branches").select("id, company_id, name").eq("company_id", actor.company_id).order("name");
+    if (branchError) throw branchError;
+    const branchIds = (branchData ?? []).map((branch: { id: string }) => branch.id);
+    const { data: teamData, error: teamError } = branchIds.length > 0
+      ? await db.from("teams").select("id, branch_id, name").in("branch_id", branchIds).order("name")
+      : { data: [], error: null };
+    if (teamError) throw teamError;
+    return { companies: companyData ?? [], branches: branchData ?? [], teams: teamData ?? [] };
+  }
   if (!platform && actor.role !== "COMPANY_ADMIN" && !actor.branch_id) return empty;
   if (!platform && actor.role === "TEAM_LEADER" && !actor.team_id) return empty;
 
@@ -366,6 +392,40 @@ async function createBranch(actor: MemberRow, body: Record<string, unknown>) {
   if (error) throw error;
   if (!data) throw new HttpError(422, "invalid_branch");
   return { branch: data };
+}
+
+async function loadBranchForActor(actor: MemberRow, body: Record<string, unknown>) {
+  const id = optionalUuid(body.id, "branch");
+  if (!id) throw new HttpError(422, "invalid_branch");
+  const query = db.from("branches").select("id, company_id, name").eq("id", id);
+  const scoped = isPlatformRole(actor.role) ? query : query.eq("company_id", actor.company_id);
+  const { data, error } = await scoped.maybeSingle();
+  if (error) throw error;
+  if (!data) throw new HttpError(404, "not_found");
+  return data as { id: string; company_id: string; name: string };
+}
+
+async function updateBranch(actor: MemberRow, body: Record<string, unknown>) {
+  if (actor.role !== "COMPANY_ADMIN" && !isPlatformRole(actor.role)) throw new HttpError(403, "forbidden");
+  const branch = await loadBranchForActor(actor, body);
+  const name = requireString(body.name, "branch");
+  const { error } = await db.from("branches").update({ name }).eq("id", branch.id);
+  if (error) throw error;
+  return { ok: true };
+}
+
+async function deleteBranch(actor: MemberRow, body: Record<string, unknown>) {
+  if (actor.role !== "COMPANY_ADMIN" && !isPlatformRole(actor.role)) throw new HttpError(403, "forbidden");
+  const branch = await loadBranchForActor(actor, body);
+  const { count, error: countError } = await db.from("members").select("id", { count: "exact", head: true }).eq("branch_id", branch.id);
+  if (countError) throw countError;
+  if ((count ?? 0) > 0) throw new HttpError(409, "branch_has_members");
+  const { count: teamCount, error: teamError } = await db.from("teams").select("id", { count: "exact", head: true }).eq("branch_id", branch.id);
+  if (teamError) throw teamError;
+  if ((teamCount ?? 0) > 0) throw new HttpError(409, "branch_has_teams");
+  const { error } = await db.from("branches").delete().eq("id", branch.id);
+  if (error) throw error;
+  return { ok: true };
 }
 
 // ── Custom Ranks ──────────────────────────────────────────────

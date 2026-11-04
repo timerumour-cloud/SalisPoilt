@@ -6,7 +6,7 @@ export const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPA
 });
 
 export const MEMBER_SELECT =
-  "id, email, firebase_uid, full_name_en, full_name_ar, user_id, username, phone, roster_order, role, company_id, branch_id, team_id, status, must_change_password, temp_password, custom_rank_id, companies(name), branches(name), teams(name)";
+  "id, email, firebase_uid, full_name_en, full_name_ar, user_id, username, phone, roster_order, role, company_id, branch_id, team_id, status, must_change_password, temp_password, custom_rank_id, companies(name), branches(name), teams(name), custom_ranks(id, name, name_ar, rank_permissions(permission))";
 
 export interface MemberRow {
   id: string;
@@ -26,6 +26,7 @@ export interface MemberRow {
   must_change_password: boolean;
   temp_password: string | null;
   custom_rank_id: string | null;
+  custom_ranks: { id: string; name: string; name_ar: string | null; rank_permissions: { permission: string }[] } | null;
   companies: { name: string } | null;
   branches: { name: string } | null;
   teams: { name: string } | null;

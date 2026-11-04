@@ -30,6 +30,8 @@ export interface RosterMember {
   teamId: string | null;
   teamName: string | null;
   customRankId: string | null;
+  customRankName: string | null;
+  customRankPermissions: string[];
   canManage: boolean;
 }
 
@@ -189,6 +191,14 @@ export async function resetMemberPassword(id: string, email: string, newPassword
 export async function createBranch(name: string, companyId?: string): Promise<{ id: string; company_id: string; name: string }> {
   const { branch } = await callRoster<{ branch: { id: string; company_id: string; name: string } }>({ action: 'createBranch', name, companyId });
   return branch;
+}
+
+export async function updateBranch(id: string, name: string): Promise<void> {
+  await callRoster<{ ok: true }>({ action: 'updateBranch', id, name });
+}
+
+export async function deleteBranch(id: string): Promise<void> {
+  await callRoster<{ ok: true }>({ action: 'deleteBranch', id });
 }
 
 // ── Custom Ranks ──────────────────────────────────────────────

@@ -1,8 +1,8 @@
-import { Bell, ChevronDown, Check } from 'lucide-react';
+import { Bell, ChevronDown } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { usePreferences, type DigitStyle } from '@/shared/stores/preferences';
+import { usePreferences } from '@/shared/stores/preferences';
 import { useCurrentUser } from '@/data/queries';
 import { DemoRoleSwitcherItems } from '@/app/dev/DemoRoleSwitcherItems';
 import { SHOW_DEMO_ROLE_SWITCHER } from '@/shared/constants/env';
@@ -20,8 +20,6 @@ function initialsOf(name: string): string {
 function UserMenu() {
   const { t, i18n } = useTranslation();
   const { data: user } = useCurrentUser();
-  const digits = usePreferences((state) => state.digits);
-  const setDigits = usePreferences((state) => state.setDigits);
   const { signOut } = useAuth();
 
   if (!user) return null;
@@ -37,7 +35,7 @@ function UserMenu() {
         </span>
         <span className="hidden text-start sm:block">
           <span className="block text-sm font-medium text-primary-900">{user.displayName}</span>
-          <span className="block text-xs text-neutral-600">{t(`roles.${user.role}`)}</span>
+          <span className="block text-xs text-neutral-600">{user.customRankName ?? t(`roles.${user.role}`)}</span>
         </span>
         <ChevronDown className="hidden h-4 w-4 text-neutral-500 sm:block" aria-hidden="true" />
       </DropdownMenu.Trigger>
@@ -51,7 +49,7 @@ function UserMenu() {
           <div className="px-3 py-2">
             <p className="text-xs text-neutral-500">{t('topbar.signedInAs')}</p>
             <p className="text-sm font-semibold text-primary-900">{user.displayName}</p>
-            <p className="text-xs text-neutral-600">{t(`roles.${user.role}`)}</p>
+            <p className="text-xs text-neutral-600">{user.customRankName ?? t(`roles.${user.role}`)}</p>
           </div>
 
           <DropdownMenu.Separator className="my-1 h-px bg-neutral-200" />
@@ -72,13 +70,6 @@ function UserMenu() {
             {t('auth.signOut')}
           </DropdownMenu.Item>
 
-          <DropdownMenu.Label className="px-3 pb-1 pt-3 text-xs font-medium text-neutral-500">
-            {t('topbar.digits')}
-          </DropdownMenu.Label>
-          <DropdownMenu.RadioGroup value={digits} onValueChange={(value) => setDigits(value as DigitStyle)}>
-            <DigitOption value="latin" label={t('topbar.digitsLatin')} />
-            <DigitOption value="arabic-indic" label={t('topbar.digitsArabic')} />
-          </DropdownMenu.RadioGroup>
 
           {SHOW_DEMO_ROLE_SWITCHER && (
             <>
@@ -89,20 +80,6 @@ function UserMenu() {
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
-  );
-}
-
-function DigitOption({ value, label }: { value: DigitStyle; label: string }) {
-  return (
-    <DropdownMenu.RadioItem
-      value={value}
-      className="flex min-h-11 cursor-pointer items-center justify-between gap-2 rounded-lg px-3 text-sm text-primary-900 outline-none data-[highlighted]:bg-neutral-100"
-    >
-      {label}
-      <DropdownMenu.ItemIndicator>
-        <Check className="h-4 w-4 text-accent-700" aria-hidden="true" />
-      </DropdownMenu.ItemIndicator>
-    </DropdownMenu.RadioItem>
   );
 }
 

@@ -389,7 +389,15 @@
     "branch": "Branch",
     "addTitle": "Add a new branch",
     "fieldName": "Branch name",
-    "addFailed": "Could not create the branch. Try again."
+    "addFailed": "Could not create the branch. Try again.",
+    "edit": "Edit",
+    "delete": "Delete",
+    "people": "People",
+    "editTitle": "Edit branch name",
+    "editFailed": "Could not update the branch.",
+    "deleteTitle": "Delete branch",
+    "deleteConfirm": "Delete branch {{name}}? Move its people and teams first.",
+    "deleteFailed": "Could not delete the branch. Move its people and teams first."
   },
   "ranksPage": {
     "title": "Ranks",

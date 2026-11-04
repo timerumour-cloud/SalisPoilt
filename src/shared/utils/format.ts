@@ -2,10 +2,9 @@ import type { AppLanguage, DigitStyle } from '@/shared/stores/preferences';
 
 const TIMEZONE = 'Asia/Dubai';
 
-/** Western digits by default; Arabic-Indic digits when the user opts in. */
-export function resolveLocale(language: AppLanguage, digits: DigitStyle): string {
+export function resolveLocale(language: AppLanguage, _digits: DigitStyle): string {
   const base = language === 'ar' ? 'ar-AE' : 'en-AE';
-  return `${base}-u-nu-${digits === 'arabic-indic' ? 'arab' : 'latn'}`;
+  return `${base}-u-nu-latn`;
 }
 
 export function formatNumber(value: number, locale: string, fractionDigits = 0): string {

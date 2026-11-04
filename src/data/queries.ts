@@ -25,6 +25,9 @@ export function useCurrentUser() {
           displayName: language === 'ar' ? member.fullNameAr ?? member.fullNameEn : member.fullNameEn,
           branchIds: member.branchId ? [member.branchId] : [],
           teamId: member.teamId,
+          customRankId: member.customRankId,
+          customRankName: member.customRankName,
+          customRankPermissions: member.customRankPermissions,
         });
       }
       return adapter.auth.currentUser();

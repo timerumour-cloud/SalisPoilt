@@ -31,7 +31,7 @@ export function RosterPage() {
   const [editing, setEditing] = useState<RosterMember | null>(null);
   const [removing, setRemoving] = useState<RosterMember | null>(null);
   const [importOpen, setImportOpen] = useState(false);
-  const canImport = member?.role !== 'EMPLOYEE';
+  const canImport = member?.role !== 'EMPLOYEE' || member?.customRankPermissions.includes('employee.import');
 
   const roster = rosterQuery.data;
   const visibleMembers = useMemo(() => {
@@ -135,10 +135,7 @@ export function RosterPage() {
         {visibleMembers.length > 0 && (
           <RosterTable
             members={visibleMembers}
-            rankName={(m) => {
-              const rank = ranks.find((r) => r.id === m.customRankId);
-              return rank ? (rank.nameAr ?? rank.name) : null;
-            }}
+            rankName={(m) => m.customRankName ?? ranks.find((r) => r.id === m.customRankId)?.nameAr ?? ranks.find((r) => r.id === m.customRankId)?.name ?? null}
             onEdit={setEditing}
             onRemove={setRemoving}
           />

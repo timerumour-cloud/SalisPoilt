@@ -71,6 +71,7 @@ function parseRow(raw: unknown, index: number, issues: RowIssue[], fallbackCompa
 }
 
 export async function importMembers(actor: MemberRow, body: Record<string, unknown>) {
+  const canImportWithCustomRank = actor.custom_ranks?.rank_permissions?.some((item) => item.permission === "employee.import") ?? false;
   if (!Array.isArray(body.rows) || body.rows.length === 0 || body.rows.length > MAX_ROWS) {
     throw new HttpError(422, "invalid_rows");
   }
@@ -169,10 +170,12 @@ export async function importMembers(actor: MemberRow, body: Record<string, unkno
     const branchId = r.branch && companyId ? (branchIds.get(`${companyId}|${r.branch}`) ?? null) : null;
     const teamId = r.team && branchId ? (teamIds.get(`${branchId}|${r.team}`) ?? null) : null;
     const targetPlacement = { role: r.role, companyId, branchId, teamId };
-    if (!assignableRolesBelow(actor.role).includes(r.role) || !canManage(
+    const canAssignRole = assignableRolesBelow(actor.role).includes(r.role) || (canImportWithCustomRank && r.role === "EMPLOYEE");
+    const canManageTarget = canManage(
       { role: actor.role, companyId: actor.company_id, branchId: actor.branch_id, teamId: actor.team_id },
       targetPlacement
-    )) {
+    ) || (canImportWithCustomRank && companyId === actor.company_id);
+    if (!canAssignRole || !canManageTarget) {
       continue;
     }
     const payload = {

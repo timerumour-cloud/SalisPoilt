@@ -4,6 +4,8 @@ import {
   createRosterCompany,
   createCompanyWithAdmin,
   createBranch,
+  updateBranch,
+  deleteBranch,
   removeRosterMember,
   resetMemberPassword,
   updateRosterMember,
@@ -70,6 +72,22 @@ export function useCreateBranch() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ name, companyId }: { name: string; companyId?: string }) => createBranch(name, companyId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roster'] }),
+  });
+}
+
+export function useUpdateBranch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => updateBranch(id, name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roster'] }),
+  });
+}
+
+export function useDeleteBranch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteBranch(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roster'] }),
   });
 }

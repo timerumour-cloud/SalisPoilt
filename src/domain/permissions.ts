@@ -147,9 +147,20 @@ function matchesScope(user: SessionUser, scope: PermissionScope, resource: Permi
   }
 }
 
+function customRankAllows(user: SessionUser, action: Action): boolean {
+  const permissions = user.customRankPermissions ?? [];
+  if (permissions.includes(action)) return true;
+  if (action === 'employee.view' && permissions.some((permission) => permission.startsWith('employee.'))) return true;
+  if (action === 'employee.manage' && permissions.some((permission) => ['employee.promote', 'employee.suspend', 'employee.revoke', 'employee.transfer'].includes(permission))) return true;
+  if (action === 'sale.import' && permissions.includes('employee.import')) return true;
+  if (action === 'target.manage' && permissions.includes('target.import')) return true;
+  if (action === 'report.view' && permissions.includes('performance.review')) return true;
+  return false;
+}
+
 export function can(user: SessionUser | null | undefined, action: Action, resource?: PermissionResource): boolean {
   if (!user) return false;
-  if (user.role === 'SUPER_ADMIN') return true;
+  if (user.role === 'SUPER_ADMIN' || customRankAllows(user, action)) return true;
   const scope = PERMISSION_MATRIX[action][user.role];
   if (!scope) return false;
   return matchesScope(user, scope, resource);
