@@ -58,3 +58,7 @@ export async function provisionFirebaseAccount(email: string, temporaryPassword:
     await signOut(auth);
   }
 }
+
+export async function provisionSingleAccount(email: string, password: string): Promise<ProvisionOutcome> {
+  return provisionFirebaseAccount(email, password);
+}

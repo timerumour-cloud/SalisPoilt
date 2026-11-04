@@ -2,6 +2,7 @@ import { createBrowserRouter, type RouteObject } from 'react-router-dom';
 import { NAV_ITEMS } from '@/app/navigation';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { RequirePermission } from '@/app/guards/RequirePermission';
+import { CompaniesPage } from '@/features/companies/CompaniesPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { NotFoundPage } from '@/app/pages/NotFoundPage';
 import { SectionPlaceholderPage } from '@/app/pages/SectionPlaceholderPage';
@@ -17,7 +18,7 @@ const sectionRoutes: RouteObject[] = NAV_ITEMS.map((item) => {
     : item.key === 'employees'
       ? <RosterPage />
       : item.key === 'companies'
-      ? <OrganizationPage section="companies" />
+      ? <CompaniesPage />
       : item.key === 'branches'
         ? <OrganizationPage section="branches" />
         : item.key === 'teams'

@@ -52,6 +52,8 @@ export async function performAction(actor: MemberRow, body: Record<string, unkno
       return importMembers(actor, body);
     case "createCompany":
       return createCompany(actor, body);
+    case "createCompanyWithAdmin":
+      return createCompanyWithAdmin(actor, body);
     case "update":
       return updateMember(actor, body);
     case "remove":
@@ -125,7 +127,7 @@ async function loadLookups(actor: MemberRow) {
   if (!platform && actor.role !== "COMPANY_ADMIN" && !actor.branch_id) return empty;
   if (!platform && actor.role === "TEAM_LEADER" && !actor.team_id) return empty;
 
-  let companies = db.from("companies").select("id, name").order("name");
+  let companies = db.from("companies").select("id, name, trade_license").order("name");
   let branches = db.from("branches").select("id, company_id, name").order("name");
   if (!platform) {
     companies = companies.eq("id", actor.company_id);
@@ -223,10 +225,66 @@ async function removeMember(actor: MemberRow, body: Record<string, unknown>) {
 async function createCompany(actor: MemberRow, body: Record<string, unknown>) {
   if (!isPlatformRole(actor.role)) throw new HttpError(403, "forbidden");
   const name = requireString(body.name, "company");
-  const { data, error } = await db.from("companies").insert({ name }).select("id, name").maybeSingle();
+  const tradeLicense = optionalString(body.tradeLicense);
+  const { data, error } = await db.from("companies").insert({ name, trade_license: tradeLicense }).select("id, name, trade_license").maybeSingle();
   if (error) throw error;
   if (!data) throw new HttpError(422, "invalid_company");
   return { company: data };
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USER_ID_PATTERN = /^[0-9]{7}$/;
+
+async function createCompanyWithAdmin(actor: MemberRow, body: Record<string, unknown>) {
+  if (!isPlatformRole(actor.role)) throw new HttpError(403, "forbidden");
+  const name = requireString(body.companyName, "company");
+  const tradeLicense = optionalString(body.tradeLicense);
+  const adminName = requireString(body.adminName, "admin_name");
+  const adminNameAr = optionalString(body.adminNameAr);
+  const adminEmail = requireString(body.adminEmail, "admin_email").toLowerCase();
+  if (!EMAIL_PATTERN.test(adminEmail)) throw new HttpError(422, "invalid_admin_email");
+  const adminPassword = requireString(body.adminPassword, "admin_password");
+  if (adminPassword.length < 8) throw new HttpError(422, "password_too_short");
+
+  const { data: companyData, error: companyError } = await db
+    .from("companies").insert({ name, trade_license: tradeLicense }).select("id, name, trade_license").maybeSingle();
+  if (companyError) throw companyError;
+  if (!companyData) throw new HttpError(422, "invalid_company");
+
+  const { data: existingMember, error: checkError } = await db
+    .from("members").select("id").eq("email", adminEmail).maybeSingle();
+  if (checkError) throw checkError;
+  if (existingMember) {
+    await db.from("companies").delete().eq("id", companyData.id);
+    throw new HttpError(422, "email_taken");
+  }
+
+  const { data: maxRow, error: maxError } = await db
+    .from("members").select("user_id").order("user_id", { ascending: false }).limit(1).maybeSingle();
+  if (maxError) throw maxError;
+  const nextUserId = maxRow?.user_id
+    ? String(Number(maxRow.user_id) + 1).padStart(7, "0")
+    : "1000001";
+  if (!USER_ID_PATTERN.test(nextUserId)) throw new HttpError(500, "user_id_overflow");
+
+  const { error: memberError } = await db.from("members").insert({
+    email: adminEmail,
+    full_name_en: adminName,
+    full_name_ar: adminNameAr,
+    username: nextUserId,
+    user_id: nextUserId,
+    role: "COMPANY_ADMIN",
+    company_id: companyData.id,
+    status: "Active",
+    must_change_password: true,
+    temp_password: adminPassword,
+  });
+  if (memberError) {
+    await db.from("companies").delete().eq("id", companyData.id);
+    throw memberError;
+  }
+
+  return { company: companyData, admin: { email: adminEmail, userId: nextUserId } };
 }
 
 async function updateProfile(actor: MemberRow, body: Record<string, unknown>) {

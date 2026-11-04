@@ -33,7 +33,7 @@ export interface RosterMember {
 }
 
 export interface RosterLookups {
-  companies: { id: string; name: string }[];
+  companies: { id: string; name: string; trade_license?: string | null }[];
   branches: { id: string; company_id: string; name: string }[];
   teams: { id: string; branch_id: string; name: string }[];
 }
@@ -150,6 +150,24 @@ export async function fetchRoster(): Promise<RosterListResponse> {
 export async function createRosterCompany(name: string): Promise<{ id: string; name: string }> {
   const response = await callRoster<{ company: { id: string; name: string } }>({ action: 'createCompany', name });
   return response.company;
+}
+
+export interface CreateCompanyWithAdminInput {
+  companyName: string;
+  tradeLicense?: string | null;
+  adminName: string;
+  adminNameAr?: string | null;
+  adminEmail: string;
+  adminPassword: string;
+}
+
+export interface CreateCompanyWithAdminResult {
+  company: { id: string; name: string; trade_license: string | null };
+  admin: { email: string; userId: string };
+}
+
+export async function createCompanyWithAdmin(input: CreateCompanyWithAdminInput): Promise<CreateCompanyWithAdminResult> {
+  return callRoster<CreateCompanyWithAdminResult>({ action: 'createCompanyWithAdmin', ...input });
 }
 
 export async function updateRosterMember(id: string, fields: RosterMemberFields): Promise<void> {

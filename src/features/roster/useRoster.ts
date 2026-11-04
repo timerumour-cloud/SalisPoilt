@@ -2,9 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchRoster,
   createRosterCompany,
+  createCompanyWithAdmin,
   removeRosterMember,
   resetMemberPassword,
   updateRosterMember,
+  type CreateCompanyWithAdminInput,
+  type CreateCompanyWithAdminResult,
   type RosterMemberFields,
 } from '@/features/roster/rosterApi';
 
@@ -19,6 +22,14 @@ export function useCreateRosterCompany() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (name: string) => createRosterCompany(name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roster'] }),
+  });
+}
+
+export function useCreateCompanyWithAdmin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateCompanyWithAdminInput) => createCompanyWithAdmin(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roster'] }),
   });
 }

@@ -340,5 +340,33 @@
     "label": "Demo role",
     "title": "Preview as a role",
     "description": "Developer preview only. Switching roles changes what you can see, using the same rules as production."
+  },
+  "companies": {
+    "title": "Companies",
+    "description": "Create companies and assign their company admins.",
+    "add": "Add company",
+    "emptyTitle": "No companies yet",
+    "emptyBody": "Create your first company to get started.",
+    "tradeLicense": "Trade license",
+    "membersCount": "{{count}} people",
+    "admins": "Company admins",
+    "addTitle": "Add a new company",
+    "addDescription": "Create the company and its first admin. The admin gets full access to this company only.",
+    "fieldCompanyName": "Company name",
+    "fieldTradeLicense": "Trade license number",
+    "adminSection": "Company admin",
+    "fieldAdminName": "Admin full name (English)",
+    "fieldAdminNameAr": "Admin full name (Arabic)",
+    "fieldAdminEmail": "Admin email",
+    "fieldAdminPassword": "Temporary password",
+    "passwordHint": "At least 8 characters. The admin will choose their own at first sign-in.",
+    "creating": "Creating...",
+    "addFailed": "Could not create the company. Check the details and try again.",
+    "addSuccessTitle": "Company created",
+    "addSuccessBody": "{{company}} is ready. The admin account has been created.",
+    "adminEmail": "Admin email",
+    "adminUserId": "Admin User ID",
+    "provisionWarning": "The company and admin record were saved, but the sign-in account could not be created right now. You can create it manually in Firebase.",
+    "firstLoginNote": "The admin must sign in with the temporary password and choose a new one before using SalesPilot."
   }
 }
