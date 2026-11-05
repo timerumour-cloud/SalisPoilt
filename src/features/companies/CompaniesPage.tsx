@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Building2, Plus, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/features/auth/useAuth';
-import { useRosterList, useCreateCompanyWithAdmin } from '@/features/roster/useRoster';
+import { useRosterList, useCreateCompanyWithAdmin, useAddCompanyAssistant } from '@/features/roster/useRoster';
 import { provisionSingleAccount } from '@/shared/auth/firebase';
 import { firebaseErrorCode } from '@/shared/auth/firebase';
 import { Badge } from '@/shared/ui/Badge';
@@ -21,6 +21,7 @@ export function CompaniesPage() {
   const member = state.status === 'ready' ? state.member : null;
   const rosterQuery = useRosterList(member?.id ?? '');
   const [addOpen, setAddOpen] = useState(false);
+  const [assistantCompany, setAssistantCompany] = useState<{ id: string; name: string } | null>(null);
 
   if (!member || rosterQuery.isPending) return <Skeleton className="h-96 w-full" />;
   if (rosterQuery.isError) return <ErrorState onRetry={() => void rosterQuery.refetch()} />;
@@ -76,9 +77,16 @@ export function CompaniesPage() {
                 </div>
                 {companyAdmins.length > 0 && (
                   <div className="mt-4 border-t border-neutral-100 pt-4">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                      {t('companies.admins')}
-                    </p>
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                        {t('companies.admins')}
+                      </p>
+                      {member && member.role === 'OWNER' && (
+                        <Button variant="ghost" size="sm" onClick={() => setAssistantCompany({ id: company.id, name: company.name })}>
+                          {t('companies.addAssistant')}
+                        </Button>
+                      )}
+                    </div>
                     <div className="flex flex-col gap-2">
                       {companyAdmins.map((admin) => (
                         <div key={admin.id} className="flex items-center justify-between gap-3">
@@ -101,6 +109,7 @@ export function CompaniesPage() {
       )}
 
       <AddCompanyDialog open={addOpen} onOpenChange={setAddOpen} />
+      <AddAssistantDialog company={assistantCompany} onOpenChange={(open) => { if (!open) setAssistantCompany(null); }} />
     </div>
   );
 }
@@ -298,6 +307,138 @@ function AddCompanyDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           </Button>
           <Button type="submit" disabled={!canSubmit}>
             {mutation.isPending ? t('companies.creating') : t('companies.add')}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function AddAssistantDialog({
+  company,
+  onOpenChange,
+}: {
+  company: { id: string; name: string } | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  const mutation = useAddCompanyAssistant();
+  const [name, setName] = useState('');
+  const [nameAr, setNameAr] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [provisionError, setProvisionError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ email: string; userId: string } | null>(null);
+
+  const reset = () => {
+    setName('');
+    setNameAr('');
+    setEmail('');
+    setPassword('');
+    setProvisionError(null);
+    setSuccess(null);
+    mutation.reset();
+  };
+
+  const handleClose = (next: boolean) => {
+    if (!next && mutation.isPending) return;
+    if (!next) reset();
+    onOpenChange(next);
+  };
+
+  const canSubmit = name.trim() && email.trim() && password.length >= 8 && !mutation.isPending;
+
+  const submit = async () => {
+    setProvisionError(null);
+    setSuccess(null);
+    if (!company) return;
+    try {
+      const result = await mutation.mutateAsync({
+        companyId: company.id,
+        name: name.trim(),
+        nameAr: nameAr.trim() || null,
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      try {
+        await provisionSingleAccount(email.trim().toLowerCase(), password);
+      } catch (error) {
+        setProvisionError(firebaseErrorCode(error) ?? 'provision_failed');
+      }
+      setSuccess({ email: result.assistant.email, userId: result.assistant.userId });
+    } catch {
+      // surfaced via mutation.isError
+    }
+  };
+
+  if (success) {
+    return (
+      <Modal open={company !== null} onOpenChange={handleClose} size="md" title={t('companies.assistantSuccess')}>
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+            <p className="text-sm text-neutral-700">
+              <span className="font-medium">{t('companies.assistantEmail')}:</span>{' '}
+              <span dir="ltr">{success.email}</span>
+            </p>
+            <p className="text-sm text-neutral-700">
+              <span className="font-medium">{t('companies.assistantUserId')}:</span>{' '}
+              <span dir="ltr" className="font-mono">{success.userId}</span>
+            </p>
+            {provisionError && (
+              <p role="alert" className="mt-2 rounded-lg bg-warning-50 px-3 py-2 text-sm text-warning-700">
+                {t('companies.provisionWarning')}
+              </p>
+            )}
+          </div>
+          <Button variant="secondary" onClick={() => handleClose(false)} className="w-full sm:w-auto sm:self-end">
+            {t('common.close')}
+          </Button>
+        </div>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal
+      open={company !== null}
+      onOpenChange={handleClose}
+      size="lg"
+      title={t('companies.assistantTitle')}
+      description={t('companies.assistantDescription')}
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (canSubmit) void submit();
+        }}
+        noValidate
+        className="flex flex-col gap-5"
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field id="assistant-name" label={t('companies.assistantName')}>
+            <input id="assistant-name" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} disabled={mutation.isPending} autoFocus />
+          </Field>
+          <Field id="assistant-name-ar" label={t('companies.assistantNameAr')}>
+            <input id="assistant-name-ar" className={inputClass} value={nameAr} onChange={(e) => setNameAr(e.target.value)} disabled={mutation.isPending} dir="auto" />
+          </Field>
+          <Field id="assistant-email" label={t('companies.assistantEmail')}>
+            <input id="assistant-email" type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} disabled={mutation.isPending} dir="ltr" />
+          </Field>
+          <Field id="assistant-password" label={t('companies.assistantPassword')} hint={t('companies.passwordHint')}>
+            <input id="assistant-password" type="password" className={inputClass} value={password} onChange={(e) => setPassword(e.target.value)} disabled={mutation.isPending} dir="ltr" autoComplete="new-password" />
+          </Field>
+        </div>
+        {mutation.isError && (
+          <p role="alert" className="rounded-lg bg-error-50 px-3 py-2 text-sm text-error-700">
+            {t('companies.assistantFailed')}
+          </p>
+        )}
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button variant="secondary" type="button" onClick={() => handleClose(false)} disabled={mutation.isPending}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" disabled={!canSubmit}>
+            {mutation.isPending ? t('companies.assistantCreating') : t('companies.addAssistant')}
           </Button>
         </div>
       </form>

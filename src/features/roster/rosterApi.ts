@@ -208,7 +208,9 @@ export interface CustomRank {
   name: string;
   nameAr: string | null;
   rankLevel: number;
+  scope: 'company' | 'branch' | 'specific';
   permissions: string[];
+  memberIds: string[];
   createdAt: string;
 }
 
@@ -236,6 +238,8 @@ export async function createRank(input: {
   nameAr?: string | null;
   rankLevel: number;
   permissions: string[];
+  scope?: 'company' | 'branch' | 'specific';
+  memberIds?: string[];
   companyId?: string;
 }): Promise<{ rankId: string }> {
   return callRoster<{ rankId: string }>({ action: 'createRank', ...input });
@@ -247,6 +251,8 @@ export async function updateRank(input: {
   nameAr?: string | null;
   rankLevel?: number;
   permissions?: string[];
+  scope?: 'company' | 'branch' | 'specific';
+  memberIds?: string[];
 }): Promise<void> {
   await callRoster<{ ok: true }>({ action: 'updateRank', ...input });
 }
@@ -283,6 +289,16 @@ export async function createPasswordRequestByEmail(email: string): Promise<void>
     body: JSON.stringify({ action: 'requestPasswordByEmail', email }),
   });
   if (!response.ok) throw new RosterError(response.status, 'request_failed');
+}
+
+export async function addCompanyAssistant(input: {
+  companyId: string;
+  name: string;
+  nameAr?: string | null;
+  email: string;
+  password: string;
+}): Promise<{ assistant: { email: string; userId: string } }> {
+  return callRoster<{ assistant: { email: string; userId: string } }>({ action: 'addCompanyAssistant', ...input });
 }
 
 export async function reviewPasswordRequest(id: string, decision: 'approved' | 'rejected'): Promise<void> {

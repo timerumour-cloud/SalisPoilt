@@ -382,7 +382,19 @@
     "adminEmail": "Admin email",
     "adminUserId": "Admin User ID",
     "provisionWarning": "The company and admin record were saved, but the sign-in account could not be created right now. You can create it manually in Firebase.",
-    "firstLoginNote": "The admin must sign in with the temporary password and choose a new one before using SalesPilot."
+    "firstLoginNote": "The admin must sign in with the temporary password and choose a new one before using SalesPilot.",
+    "assistant": "Assistant",
+    "addAssistant": "Add assistant",
+    "assistantTitle": "Add company assistant",
+    "assistantDescription": "Add an assistant to the company owner. The assistant gets the same access as the company admin.",
+    "assistantName": "Assistant name (English)",
+    "assistantNameAr": "Assistant name (Arabic)",
+    "assistantEmail": "Assistant email",
+    "assistantPassword": "Temporary password",
+    "assistantCreating": "Adding...",
+    "assistantSuccess": "The assistant account has been created.",
+    "assistantFailed": "Could not add the assistant. Check the details and try again.",
+    "assistantUserId": "Assistant User ID"
   },
   "branchesPage": {
     "title": "Branches",
@@ -422,6 +434,14 @@
     "deleteTitle": "Delete rank",
     "deleteConfirm": "Are you sure you want to delete \"{{name}}\"? Members with this rank will lose its permissions.",
     "deleteFailed": "Could not delete the rank. Try again.",
+    "scopeLabel": "Scope of application",
+    "scope": {
+      "company": "Apply to all employees in the company",
+      "branch": "Apply only to employees in the person's branch",
+      "specific": "Apply only to specific people"
+    },
+    "specificHint": "Choose the people this rank will apply to:",
+    "noMembers": "No employees available to select.",
     "permissions": {
       "branch.manage": "Manage branches",
       "employee.import": "Import employees (Excel)",

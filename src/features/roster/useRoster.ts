@@ -3,6 +3,7 @@ import {
   fetchRoster,
   createRosterCompany,
   createCompanyWithAdmin,
+  addCompanyAssistant,
   createBranch,
   updateBranch,
   deleteBranch,
@@ -138,5 +139,13 @@ export function useReviewPasswordRequest() {
     mutationFn: ({ id, decision }: { id: string; decision: 'approved' | 'rejected' }) =>
       reviewPasswordRequest(id, decision),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['password-requests'] }),
+  });
+}
+
+export function useAddCompanyAssistant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: addCompanyAssistant,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roster'] }),
   });
 }

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pencil, Plus, Shield, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   useRanks,
+  useRosterList,
   useCreateRank,
   useUpdateRank,
   useDeleteRank,
@@ -20,6 +21,8 @@ import { Field, inputClass } from '@/shared/ui/Field';
 import { Modal } from '@/shared/ui/Modal';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Skeleton } from '@/shared/ui/Skeleton';
+
+type RankScope = 'company' | 'branch' | 'specific';
 
 export function RanksPage() {
   const { t } = useTranslation();
@@ -66,6 +69,7 @@ export function RanksPage() {
                     <h2 className="truncate text-lg font-semibold text-primary-900">{rank.name}</h2>
                     {rank.nameAr && <p className="text-xs text-neutral-600" dir="auto">{rank.nameAr}</p>}
                     <p className="mt-1 text-xs text-neutral-600">{t('ranksPage.level', { level: rank.rankLevel })}</p>
+                    <p className="mt-1 text-xs font-medium text-accent-700">{t(`ranksPage.scope.${rank.scope}`)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -149,6 +153,85 @@ function PermissionSelector({
   );
 }
 
+function ScopeSelector({
+  scope,
+  onChange,
+}: {
+  scope: RankScope;
+  onChange: (scope: RankScope) => void;
+}) {
+  const { t } = useTranslation();
+  const options: RankScope[] = ['company', 'branch', 'specific'];
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="flex items-center gap-2 text-sm text-primary-900">
+        <input
+          type="radio"
+          name="rank-scope"
+          checked={scope === 'company'}
+          onChange={() => onChange('company')}
+          className="h-4 w-4 text-accent-600 focus:ring-accent-500"
+        />
+        {t('ranksPage.scope.company')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-primary-900">
+        <input
+          type="radio"
+          name="rank-scope"
+          checked={scope === 'branch'}
+          onChange={() => onChange('branch')}
+          className="h-4 w-4 text-accent-600 focus:ring-accent-500"
+        />
+        {t('ranksPage.scope.branch')}
+      </label>
+      <label className="flex items-center gap-2 text-sm text-primary-900">
+        <input
+          type="radio"
+          name="rank-scope"
+          checked={scope === 'specific'}
+          onChange={() => onChange('specific')}
+          className="h-4 w-4 text-accent-600 focus:ring-accent-500"
+        />
+        {t('ranksPage.scope.specific')}
+      </label>
+    </div>
+  );
+}
+
+function MemberPicker({
+  members,
+  selected,
+  onChange,
+}: {
+  members: { id: string; fullNameEn: string }[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const { t } = useTranslation();
+  const toggle = (id: string) => {
+    if (selected.includes(id)) onChange(selected.filter((x) => x !== id));
+    else onChange([...selected, id]);
+  };
+  if (members.length === 0) {
+    return <p className="text-sm text-neutral-500">{t('ranksPage.noMembers')}</p>;
+  }
+  return (
+    <div className="max-h-48 overflow-y-auto rounded-lg border border-neutral-200 p-2">
+      {members.map((m) => (
+        <label key={m.id} className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer rounded hover:bg-neutral-50">
+          <input
+            type="checkbox"
+            checked={selected.includes(m.id)}
+            onChange={() => toggle(m.id)}
+            className="h-4 w-4 rounded border-neutral-300 text-accent-600 focus:ring-accent-500"
+          />
+          <span className="text-primary-900" dir="auto">{m.fullNameEn}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function RankDialog({
   open,
   rank,
@@ -161,6 +244,7 @@ function RankDialog({
   const { t } = useTranslation();
   const createMutation = useCreateRank();
   const updateMutation = useUpdateRank();
+  const rosterQuery = useRosterList('');
   const isEdit = rank !== null;
   const mutation = isEdit ? updateMutation : createMutation;
 
@@ -168,14 +252,32 @@ function RankDialog({
   const [nameAr, setNameAr] = useState(rank?.nameAr ?? '');
   const [rankLevel, setRankLevel] = useState(rank?.rankLevel ?? 20);
   const [permissions, setPermissions] = useState<string[]>(rank?.permissions ?? []);
+  const [scope, setScope] = useState<RankScope>(rank?.scope ?? 'company');
+  const [memberIds, setMemberIds] = useState<string[]>(rank?.memberIds ?? []);
 
-  const handleClose = (next: boolean) => {
-    if (!next && mutation.isPending) return;
-    if (!next) {
+  useEffect(() => {
+    if (rank) {
+      setName(rank.name);
+      setNameAr(rank.nameAr ?? '');
+      setRankLevel(rank.rankLevel);
+      setPermissions(rank.permissions);
+      setScope(rank.scope);
+      setMemberIds(rank.memberIds);
+    } else {
       setName('');
       setNameAr('');
       setRankLevel(20);
       setPermissions([]);
+      setScope('company');
+      setMemberIds([]);
+    }
+  }, [rank, open]);
+
+  const allMembers = (rosterQuery.data?.members ?? []).map((m) => ({ id: m.id, fullNameEn: m.fullNameEn }));
+
+  const handleClose = (next: boolean) => {
+    if (!next && mutation.isPending) return;
+    if (!next) {
       mutation.reset();
     }
     onOpenChange(next);
@@ -190,6 +292,8 @@ function RankDialog({
           nameAr: nameAr.trim() || null,
           rankLevel,
           permissions,
+          scope,
+          memberIds: scope === 'specific' ? memberIds : [],
         });
       } else {
         await createMutation.mutateAsync({
@@ -197,6 +301,8 @@ function RankDialog({
           nameAr: nameAr.trim() || null,
           rankLevel,
           permissions,
+          scope,
+          memberIds: scope === 'specific' ? memberIds : [],
         });
       }
       handleClose(false);
@@ -260,6 +366,16 @@ function RankDialog({
         <div>
           <p className="mb-2 text-sm font-medium text-primary-900">{t('ranksPage.permissionsLabel')}</p>
           <PermissionSelector selected={permissions} onChange={setPermissions} />
+        </div>
+        <div className="border-t border-neutral-200 pt-4">
+          <p className="mb-3 text-sm font-medium text-primary-900">{t('ranksPage.scopeLabel')}</p>
+          <ScopeSelector scope={scope} onChange={setScope} />
+          {scope === 'specific' && (
+            <div className="mt-3">
+              <p className="mb-2 text-xs text-neutral-600">{t('ranksPage.specificHint')}</p>
+              <MemberPicker members={allMembers} selected={memberIds} onChange={setMemberIds} />
+            </div>
+          )}
         </div>
         {mutation.isError && (
           <p role="alert" className="rounded-lg bg-error-50 px-3 py-2 text-sm text-error-700">

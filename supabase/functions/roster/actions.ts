@@ -57,6 +57,8 @@ export async function performAction(actor: MemberRow, body: Record<string, unkno
       return createCompany(actor, body);
     case "createCompanyWithAdmin":
       return createCompanyWithAdmin(actor, body);
+    case "addCompanyAssistant":
+      return addCompanyAssistant(actor, body);
     case "update":
       return updateMember(actor, body);
     case "remove":
@@ -119,6 +121,20 @@ function hasCustomPermission(actor: MemberRow, permission: string): boolean {
   return actor.custom_ranks?.rank_permissions?.some((item) => item.permission === permission) ?? false;
 }
 
+async function customRankMemberIds(actor: MemberRow): Promise<string[] | null> {
+  if (!actor.custom_rank_id) return null;
+  const { data: rank, error } = await db.from("custom_ranks").select("scope").eq("id", actor.custom_rank_id).maybeSingle();
+  if (error || !rank) return null;
+  if (rank.scope === "company") return null;
+  if (rank.scope === "branch" && actor.branch_id) return null;
+  if (rank.scope === "specific") {
+    const { data: rmembers, error: rmError } = await db.from("rank_members").select("member_id").eq("rank_id", actor.custom_rank_id);
+    if (rmError) return null;
+    return (rmembers ?? []).map((m: { member_id: string }) => m.member_id);
+  }
+  return null;
+}
+
 function scopedMembersQuery(actor: MemberRow) {
   const query = db
     .from("members")
@@ -129,6 +145,7 @@ function scopedMembersQuery(actor: MemberRow) {
   if (actor.role === "COMPANY_ADMIN" && actor.company_id) return query.eq("company_id", actor.company_id);
   if (actor.role === "BRANCH_MANAGER" && actor.branch_id) return query.eq("branch_id", actor.branch_id);
   if (actor.company_id && (hasCustomPermission(actor, "employee.view") || hasCustomPermission(actor, "employee.import") || hasCustomPermission(actor, "employee.transfer"))) {
+    if (actor.branch_id && actor.custom_ranks?.scope === "branch") return query.eq("branch_id", actor.branch_id);
     return query.eq("company_id", actor.company_id);
   }
   if (actor.role === "TEAM_LEADER" && actor.team_id) return query.eq("team_id", actor.team_id);
@@ -136,12 +153,17 @@ function scopedMembersQuery(actor: MemberRow) {
 }
 
 async function listMembers(actor: MemberRow) {
-  const { data, error } = await scopedMembersQuery(actor);
+  let baseQuery = scopedMembersQuery(actor);
+  const specificIds = await customRankMemberIds(actor);
+  if (specificIds) {
+    baseQuery = baseQuery.in("id", specificIds.length > 0 ? specificIds : [actor.id]);
+  }
+  const { data, error } = await baseQuery;
   if (error) throw error;
   const me = placementOf(actor);
   const customCanManage = hasCustomPermission(actor, "employee.promote") || hasCustomPermission(actor, "employee.suspend") || hasCustomPermission(actor, "employee.revoke") || hasCustomPermission(actor, "employee.transfer");
   const members = ((data ?? []) as MemberRow[]).map((row) =>
-    toMemberDto(row, row.id !== actor.id && (customCanManage ? row.company_id === actor.company_id : canManage(me, placementOf(row))))
+    toMemberDto(row, row.id !== actor.id && (customCanManage ? (specificIds ? specificIds.includes(row.id) : row.company_id === actor.company_id) : canManage(me, placementOf(row))))
   );
   return {
     members,
@@ -461,7 +483,7 @@ function rankCompanyId(actor: MemberRow, body: Record<string, unknown>): string 
 async function listRanks(actor: MemberRow) {
   assertCompanyAdmin(actor);
   const cid = isPlatformRole(actor.role) ? null : actor.company_id;
-  let query = db.from("custom_ranks").select("id, company_id, name, name_ar, rank_level, created_at").order("rank_level", { ascending: false });
+  let query = db.from("custom_ranks").select("id, company_id, name, name_ar, rank_level, scope, created_at").order("rank_level", { ascending: false });
   if (cid) query = query.eq("company_id", cid);
   const { data: ranks, error } = await query;
   if (error) throw error;
@@ -470,24 +492,37 @@ async function listRanks(actor: MemberRow) {
   const { data: perms, error: permError } = await db
     .from("rank_permissions").select("rank_id, permission").in("rank_id", rankIds);
   if (permError) throw permError;
+  const { data: rmembers, error: rmError } = await db
+    .from("rank_members").select("rank_id, member_id").in("rank_id", rankIds);
+  if (rmError) throw rmError;
   const permMap = new Map<string, string[]>();
   for (const p of (perms ?? []) as { rank_id: string; permission: string }[]) {
     const arr = permMap.get(p.rank_id) ?? [];
     arr.push(p.permission);
     permMap.set(p.rank_id, arr);
   }
+  const memberMap = new Map<string, string[]>();
+  for (const m of (rmembers ?? []) as { rank_id: string; member_id: string }[]) {
+    const arr = memberMap.get(m.rank_id) ?? [];
+    arr.push(m.member_id);
+    memberMap.set(m.rank_id, arr);
+  }
   return {
-    ranks: ranks.map((r: { id: string; company_id: string; name: string; name_ar: string | null; rank_level: number; created_at: string }) => ({
+    ranks: ranks.map((r: { id: string; company_id: string; name: string; name_ar: string | null; rank_level: number; scope: string; created_at: string }) => ({
       id: r.id,
       companyId: r.company_id,
       name: r.name,
       nameAr: r.name_ar,
       rankLevel: r.rank_level,
+      scope: r.scope,
       permissions: permMap.get(r.id) ?? [],
+      memberIds: memberMap.get(r.id) ?? [],
       createdAt: r.created_at,
     })),
   };
 }
+
+const VALID_SCOPES = ["company", "branch", "specific"] as const;
 
 async function createRank(actor: MemberRow, body: Record<string, unknown>) {
   assertCompanyAdmin(actor);
@@ -499,8 +534,9 @@ async function createRank(actor: MemberRow, body: Record<string, unknown>) {
   for (const p of permissions) {
     if (!VALID_PERMISSIONS.includes(p as (typeof VALID_PERMISSIONS)[number])) throw new HttpError(422, "invalid_permission");
   }
+  const scope = typeof body.scope === "string" && VALID_SCOPES.includes(body.scope as (typeof VALID_SCOPES)[number]) ? body.scope : "company";
   const { data: rank, error: rankError } = await db
-    .from("custom_ranks").insert({ name, name_ar: nameAr, rank_level: rankLevel, company_id: cid }).select("id").maybeSingle();
+    .from("custom_ranks").insert({ name, name_ar: nameAr, rank_level: rankLevel, company_id: cid, scope }).select("id").maybeSingle();
   if (rankError) throw rankError;
   if (!rank) throw new HttpError(422, "invalid_rank");
   if (permissions.length > 0) {
@@ -508,6 +544,7 @@ async function createRank(actor: MemberRow, body: Record<string, unknown>) {
     const { error: permError } = await db.from("rank_permissions").insert(rows);
     if (permError) throw permError;
   }
+  await syncRankMembers(rank.id, cid, body.memberIds);
   return { rankId: rank.id };
 }
 
@@ -541,7 +578,29 @@ async function updateRank(actor: MemberRow, body: Record<string, unknown>) {
       if (insError) throw insError;
     }
   }
+  if (typeof body.scope === "string" && VALID_SCOPES.includes(body.scope as (typeof VALID_SCOPES)[number])) {
+    const { error: scopeError } = await db.from("custom_ranks").update({ scope: body.scope, updated_at: new Date().toISOString() }).eq("id", id);
+    if (scopeError) throw scopeError;
+  }
+  if (Array.isArray(body.memberIds)) {
+    await syncRankMembers(id, (existing as { company_id: string }).company_id, body.memberIds);
+  }
   return { ok: true };
+}
+
+async function syncRankMembers(rankId: string, companyId: string, rawMemberIds: unknown) {
+  if (!Array.isArray(rawMemberIds)) return;
+  const memberIds = (rawMemberIds as unknown[]).filter((m): m is string => typeof m === "string" && UUID_PATTERN.test(m));
+  if (memberIds.length === 0) return;
+  const { data: valid, error } = await db.from("members").select("id").eq("company_id", companyId).in("id", memberIds);
+  if (error) throw error;
+  const validIds = (valid ?? []).map((m: { id: string }) => m.id);
+  if (validIds.length === 0) return;
+  const { error: delError } = await db.from("rank_members").delete().eq("rank_id", rankId);
+  if (delError) throw delError;
+  const rows = validIds.map((mid: string) => ({ rank_id: rankId, member_id: mid }));
+  const { error: insError } = await db.from("rank_members").insert(rows);
+  if (insError) throw insError;
 }
 
 async function deleteRank(actor: MemberRow, body: Record<string, unknown>) {
@@ -557,6 +616,41 @@ async function deleteRank(actor: MemberRow, body: Record<string, unknown>) {
   const { error } = await db.from("custom_ranks").delete().eq("id", id);
   if (error) throw error;
   return { ok: true };
+}
+
+async function addCompanyAssistant(actor: MemberRow, body: Record<string, unknown>) {
+  if (!isPlatformRole(actor.role)) throw new HttpError(403, "forbidden");
+  const companyId = optionalUuid(body.companyId, "company");
+  if (!companyId) throw new HttpError(422, "invalid_company");
+  const name = requireString(body.name, "assistant_name");
+  const nameAr = optionalString(body.nameAr);
+  const email = requireString(body.email, "assistant_email").toLowerCase();
+  if (!EMAIL_PATTERN.test(email)) throw new HttpError(422, "invalid_email");
+  const password = requireString(body.password, "assistant_password");
+  if (password.length < 8) throw new HttpError(422, "password_too_short");
+
+  const { data: existing } = await db.from("members").select("id").eq("email", email).maybeSingle();
+  if (existing) throw new HttpError(422, "email_taken");
+
+  const { data: maxRow } = await db.from("members").select("user_id").order("user_id", { ascending: false }).limit(1).maybeSingle();
+  const nextUserId = maxRow?.user_id ? String(Number(maxRow.user_id) + 1).padStart(7, "0") : "1000001";
+  if (!USER_ID_PATTERN.test(nextUserId)) throw new HttpError(500, "user_id_overflow");
+
+  const { error } = await db.from("members").insert({
+    email,
+    full_name_en: name,
+    full_name_ar: nameAr,
+    username: nextUserId,
+    user_id: nextUserId,
+    role: "COMPANY_ADMIN",
+    company_id: companyId,
+    is_assistant: true,
+    status: "Active",
+    must_change_password: true,
+    temp_password: password,
+  });
+  if (error) throw error;
+  return { assistant: { email, userId: nextUserId } };
 }
 
 // ── Password Change Requests ──────────────────────────────────
