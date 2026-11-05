@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/features/auth/useAuth';
 import { firebaseErrorCode } from '@/shared/auth/firebase';
 import { updateProfile } from '@/features/roster/rosterApi';
+import { useCreatePasswordRequest } from '@/features/roster/useRoster';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Field, inputClass } from '@/shared/ui/Field';
@@ -12,11 +13,12 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 export function ProfilePage() {
   const { t } = useTranslation();
   const { state, sendPasswordReset, retry } = useAuth();
+  const requestMutation = useCreatePasswordRequest();
   const member = state.status === 'ready' ? state.member : null;
   const [fullNameEn, setFullNameEn] = useState('');
   const [fullNameAr, setFullNameAr] = useState('');
   const [phone, setPhone] = useState('');
-  const [status, setStatus] = useState<'idle' | 'saved' | 'resetSent' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'saved' | 'resetSent' | 'requestSent' | 'error'>('idle');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -52,6 +54,16 @@ export function ProfilePage() {
     }
   };
 
+  const requestReset = async () => {
+    setStatus('idle');
+    try {
+      await requestMutation.mutateAsync();
+      setStatus('requestSent');
+    } catch {
+      setStatus('error');
+    }
+  };
+
   return (
     <>
       <PageHeader title={t('profile.title')} description={t('profile.description')} />
@@ -84,9 +96,11 @@ export function ProfilePage() {
           <h2 className="mt-5 text-lg font-semibold text-primary-900">{t('profile.passwordTitle')}</h2>
           <p className="mt-2 text-sm text-neutral-600">{t('profile.passwordDescription')}</p>
           {status === 'resetSent' && <p role="status" className="mt-4 rounded-lg bg-success-50 px-3 py-2 text-sm text-success-700">{t('profile.resetSent')}</p>}
-          <Button variant="secondary" onClick={() => void sendReset()} className="mt-6 w-full">
-            {t('profile.sendReset')}
-          </Button>
+          {status === 'requestSent' && <p role="status" className="mt-4 rounded-lg bg-success-50 px-3 py-2 text-sm text-success-700">{t('profile.requestSent')}</p>}
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <Button variant="secondary" onClick={() => void sendReset()} disabled={requestMutation.isPending}>{t('profile.sendReset')}</Button>
+            <Button onClick={() => void requestReset()} disabled={requestMutation.isPending}>{t('profile.requestReset')}</Button>
+          </div>
         </Card>
       </div>
     </>

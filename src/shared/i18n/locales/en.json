@@ -119,7 +119,9 @@
     "passwordTitle": "Password",
     "passwordDescription": "Send a secure password-change link to your sign-in email.",
     "sendReset": "Email me a password link",
-    "resetSent": "A password-change link was sent to your email."
+    "requestReset": "Request approval to change password",
+    "resetSent": "A password-change link was sent to your email.",
+    "requestSent": "Your request was sent to an authorized owner."
   },
   "organization": {
     "branches": "branches",
@@ -227,6 +229,8 @@
       "submit": "Send reset link",
       "submitting": "Sending...",
       "sent": "If an account exists for this email, a reset link is on its way. Check your spam folder.",
+      "requestApproval": "Request approval from an owner",
+      "requested": "Your request was sent to the platform or company owner.",
       "back": "Back to sign in"
     },
     "signOut": "Sign out"
@@ -273,8 +277,9 @@
       "companyAssignment": "Company & branch",
       "companyHint": "Use the Branches page to manage teams and locations.",
       "branch": "Branch",
+      "noBranch": "No branch",
       "team": "Team",
-      "saveFailed": "Could not save changes. Check the rank and place, then try again.",
+      "saveFailed": "Could not save changes. Check the rank and branch, then try again.",
       "saving": "Saving...",
       "resetPassword": "Reset password",
       "resetPasswordDescription": "Set a new temporary password. The person must choose their own at next sign-in.",

@@ -3,7 +3,7 @@ import { GitBranch, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/features/auth/useAuth';
 import { EditMemberDialog, type EditMemberSaveFields } from '@/features/roster/EditMemberDialog';
-import { useCreateBranch, useCreateRosterCompany, useDeleteBranch, useRanks, useRosterList, useUpdateBranch, useUpdateRosterMember } from '@/features/roster/useRoster';
+import { useCreateBranch, useDeleteBranch, useRanks, useRosterList, useUpdateBranch, useUpdateRosterMember } from '@/features/roster/useRoster';
 import type { RosterMember } from '@/features/roster/rosterApi';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
@@ -22,7 +22,6 @@ export function BranchesPage() {
   const rosterQuery = useRosterList(member?.id ?? '');
   const ranksQuery = useRanks();
   const updateMemberMutation = useUpdateRosterMember();
-  const createCompanyMutation = useCreateRosterCompany();
   const [addOpen, setAddOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<{ id: string; name: string } | null>(null);
   const [deletingBranch, setDeletingBranch] = useState<{ id: string; name: string } | null>(null);
@@ -45,7 +44,7 @@ export function BranchesPage() {
         ...fields,
         role: editingMember.role,
         companyId: editingMember.companyId,
-        branchId: editingMember.branchId,
+        branchId: fields.branchId,
         teamId: editingMember.teamId,
       },
     }, { onSuccess: () => setEditingMember(null) });
@@ -96,7 +95,7 @@ export function BranchesPage() {
       <AddBranchDialog open={addOpen} onOpenChange={setAddOpen} />
       <BranchNameDialog branch={editingBranch} onOpenChange={(open) => { if (!open) setEditingBranch(null); }} />
       <DeleteBranchDialog branch={deletingBranch} onOpenChange={(open) => { if (!open) setDeletingBranch(null); }} />
-      {roster && <EditMemberDialog member={editingMember} roster={roster} ranks={ranks} pending={updateMemberMutation.isPending} error={updateMemberMutation.isError} onSave={saveMember} onCreateCompany={(name) => createCompanyMutation.mutateAsync(name)} onResetPassword={async () => undefined} resetPasswordPending={false} resetPasswordError={false} resetPasswordSuccess={false} onOpenChange={(open) => { if (!open) setEditingMember(null); }} />}
+      {roster && <EditMemberDialog member={editingMember} roster={roster} ranks={ranks} pending={updateMemberMutation.isPending} error={updateMemberMutation.isError} onSave={saveMember} onOpenChange={(open) => { if (!open) setEditingMember(null); }} />}
     </div>
   );
 }

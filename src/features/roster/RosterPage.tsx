@@ -10,7 +10,7 @@ import { Skeleton } from '@/shared/ui/Skeleton';
 import { inputClass } from '@/shared/ui/Field';
 import type { RosterMember } from '@/features/roster/rosterApi';
 import type { EditMemberSaveFields } from '@/features/roster/EditMemberDialog';
-import { useCreateRosterCompany, useRemoveRosterMember, useResetMemberPassword, useRanks, useRosterList, useUpdateRosterMember } from '@/features/roster/useRoster';
+import { useRemoveRosterMember, useRanks, useRosterList, useUpdateRosterMember } from '@/features/roster/useRoster';
 import { RosterTable } from '@/features/roster/RosterTable';
 import { EditMemberDialog } from '@/features/roster/EditMemberDialog';
 import { RemoveMemberDialog } from '@/features/roster/RemoveMemberDialog';
@@ -24,9 +24,7 @@ export function RosterPage() {
   const ranksQuery = useRanks();
   const ranks = ranksQuery.data?.ranks ?? [];
   const updateMutation = useUpdateRosterMember();
-  const createCompanyMutation = useCreateRosterCompany();
   const removeMutation = useRemoveRosterMember();
-  const resetPasswordMutation = useResetMemberPassword();
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<RosterMember | null>(null);
   const [removing, setRemoving] = useState<RosterMember | null>(null);
@@ -48,7 +46,6 @@ export function RosterPage() {
   const closeEdit = () => {
     setEditing(null);
     updateMutation.reset();
-    resetPasswordMutation.reset();
   };
 
   const closeRemove = () => {
@@ -67,7 +64,7 @@ export function RosterPage() {
           role: editing.role,
           status: fields.status,
           companyId: editing.companyId,
-          branchId: editing.branchId,
+          branchId: fields.branchId,
           teamId: editing.teamId,
           customRankId: fields.customRankId,
         },
@@ -150,14 +147,6 @@ export function RosterPage() {
           pending={updateMutation.isPending}
           error={updateMutation.isError}
           onSave={saveEdit}
-          onCreateCompany={(name) => createCompanyMutation.mutateAsync(name)}
-          onResetPassword={async (newPassword) => {
-            if (!editing) return;
-            await resetPasswordMutation.mutateAsync({ id: editing.id, email: editing.email, newPassword });
-          }}
-          resetPasswordPending={resetPasswordMutation.isPending}
-          resetPasswordError={resetPasswordMutation.isError}
-          resetPasswordSuccess={resetPasswordMutation.isSuccess}
           onOpenChange={(open) => {
             if (!open) closeEdit();
           }}

@@ -1,10 +1,10 @@
 import { createRemoteJWKSet, jwtVerify } from "npm:jose@5";
-import { performAction } from "./actions.ts";
+import { performAction, requestPasswordByEmail } from "./actions.ts";
 import { db, MEMBER_SELECT, type MemberRow } from "./db.ts";
 import { corsHeaders, HttpError, json } from "./http.ts";
 
 const FIREBASE_PROJECT_ID = "salespilot-e581d";
-const ROSTER_FUNCTION_VERSION = "2026-11-04-rev7";
+const ROSTER_FUNCTION_VERSION = "2026-11-05-rev8"
 const FIREBASE_KEYS = createRemoteJWKSet(
   new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
 );
@@ -70,14 +70,16 @@ Deno.serve(async (req: Request) => {
 
   try {
     void ROSTER_FUNCTION_VERSION;
-    const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-    if (!token) throw new HttpError(401, "unauthenticated");
-    const claims = await verifyFirebaseToken(token);
-
     const body = (await req.json().catch(() => {
       throw new HttpError(400, "invalid_body");
     })) as Record<string, unknown>;
 
+    if (body.action === "requestPasswordByEmail") {
+      return json(await requestPasswordByEmail(body));
+    }
+    const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+    if (!token) throw new HttpError(401, "unauthenticated");
+    const claims = await verifyFirebaseToken(token);
     const actor = await resolveActor(claims);
     return json(await performAction(actor, body));
   } catch (err) {

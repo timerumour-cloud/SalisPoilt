@@ -7,6 +7,7 @@ import { Button } from '@/shared/ui/Button';
 import { Field, inputClass } from '@/shared/ui/Field';
 import { firebaseErrorCode } from '@/shared/auth/firebase';
 import { useAuth } from '@/features/auth/useAuth';
+import { createPasswordRequestByEmail } from '@/features/roster/rosterApi';
 
 const schema = z.object({
   email: z.string().trim().email(),
@@ -14,7 +15,7 @@ const schema = z.object({
 
 type ForgotPasswordValues = z.infer<typeof schema>;
 
-type ResetStatus = 'idle' | 'sent' | 'network' | 'unknown';
+type ResetStatus = 'idle' | 'sent' | 'requested' | 'network' | 'unknown';
 
 export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
@@ -28,6 +29,18 @@ export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
     resolver: zodResolver(schema),
     defaultValues: { email: '' },
   });
+
+  const requestApproval = async () => {
+    const email = document.getElementById('reset-email') as HTMLInputElement | null;
+    if (!email?.value) return;
+    setStatus('idle');
+    try {
+      await createPasswordRequestByEmail(email.value);
+      setStatus('requested');
+    } catch {
+      setStatus('unknown');
+    }
+  };
 
   const onSubmit = async (values: ForgotPasswordValues) => {
     setStatus('idle');
@@ -64,14 +77,22 @@ export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
             {t('auth.forgot.sent')}
           </p>
         )}
+        {status === 'requested' && (
+          <p role="status" className="rounded-lg bg-success-50 px-3 py-2 text-sm text-success-700">{t('auth.forgot.requested')}</p>
+        )}
         {(status === 'network' || status === 'unknown') && (
           <p role="alert" className="rounded-lg bg-error-50 px-3 py-2 text-sm text-error-700">
             {t(`auth.errors.${status}`)}
           </p>
         )}
-        <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? t('auth.forgot.submitting') : t('auth.forgot.submit')}
-        </Button>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Button type="submit" disabled={isSubmitting} className="w-full">
+            {isSubmitting ? t('auth.forgot.submitting') : t('auth.forgot.submit')}
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => void requestApproval()} disabled={isSubmitting} className="w-full">
+            {t('auth.forgot.requestApproval')}
+          </Button>
+        </div>
       </form>
       <Button variant="ghost" onClick={onBack} className="w-full">
         {t('auth.forgot.back')}

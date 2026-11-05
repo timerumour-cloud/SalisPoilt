@@ -276,6 +276,15 @@ export async function createPasswordRequest(): Promise<void> {
   await callRoster<{ ok: true }>({ action: 'createPasswordRequest' });
 }
 
+export async function createPasswordRequestByEmail(email: string): Promise<void> {
+  const response = await fetch(ROSTER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'requestPasswordByEmail', email }),
+  });
+  if (!response.ok) throw new RosterError(response.status, 'request_failed');
+}
+
 export async function reviewPasswordRequest(id: string, decision: 'approved' | 'rejected'): Promise<void> {
   await callRoster<{ ok: true }>({ action: 'reviewPasswordRequest', id, decision });
 }

@@ -574,6 +574,20 @@ async function listPasswordRequests(actor: MemberRow) {
   return { requests: data ?? [] };
 }
 
+export async function requestPasswordByEmail(body: Record<string, unknown>) {
+  const email = requireString(body.email, "email").toLowerCase();
+  const { data: member, error } = await db.from("members").select("id, company_id").eq("email", email).maybeSingle();
+  if (error) throw error;
+  if (member?.company_id) {
+    const { data: existing } = await db.from("password_change_requests").select("id").eq("member_id", member.id).eq("status", "pending").maybeSingle();
+    if (!existing) {
+      const { error: insertError } = await db.from("password_change_requests").insert({ member_id: member.id, company_id: member.company_id, status: "pending" });
+      if (insertError) throw insertError;
+    }
+  }
+  return { ok: true };
+}
+
 async function createPasswordRequest(actor: MemberRow, _body: Record<string, unknown>) {
   if (!actor.company_id) throw new HttpError(403, "forbidden");
   const { data: existing } = await db
