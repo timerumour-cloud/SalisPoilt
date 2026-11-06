@@ -664,7 +664,7 @@ async function addCompanyAssistant(actor: MemberRow, body: Record<string, unknow
 // ── Password Change Requests ──────────────────────────────────
 
 async function listPasswordRequests(actor: MemberRow) {
-  if (actor.role === "EMPLOYEE") throw new HttpError(403, "forbidden");
+  if (actor.role === "EMPLOYEE" && !hasCustomPermission(actor, "password.approve")) throw new HttpError(403, "forbidden");
   const platform = isPlatformRole(actor.role);
   const cid = platform ? null : actor.company_id;
   let query = db
@@ -749,7 +749,7 @@ async function checkPasswordRequest(actor: MemberRow, body: Record<string, unkno
 }
 
 async function reviewPasswordRequest(actor: MemberRow, body: Record<string, unknown>) {
-  if (actor.role === "EMPLOYEE") throw new HttpError(403, "forbidden");
+  if (actor.role === "EMPLOYEE" && !hasCustomPermission(actor, "password.approve")) throw new HttpError(403, "forbidden");
   const id = optionalUuid(body.id, "id");
   if (!id) throw new HttpError(422, "invalid_id");
   const decision = requireString(body.decision, "decision");
