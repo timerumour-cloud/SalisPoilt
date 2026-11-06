@@ -94,5 +94,9 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    (function ({ addVariant }) {
+      addVariant('rtl', '&:where([dir="rtl"] *)');
+    }),
+  ],
 };

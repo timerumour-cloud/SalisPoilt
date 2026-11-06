@@ -165,7 +165,16 @@ async function listMembers(actor: MemberRow) {
   const me = placementOf(actor);
   const customCanManage = hasCustomPermission(actor, "employee.promote") || hasCustomPermission(actor, "employee.suspend") || hasCustomPermission(actor, "employee.revoke") || hasCustomPermission(actor, "employee.transfer");
   const members = ((data ?? []) as MemberRow[]).map((row) =>
-    toMemberDto(row, row.id !== actor.id && (customCanManage ? (specificIds ? specificIds.includes(row.id) : row.company_id === actor.company_id) : canManage(me, placementOf(row))))
+    toMemberDto(
+      row,
+      row.id !== actor.id && (customCanManage
+        ? (specificIds
+            ? specificIds.includes(row.id)
+            : actor.custom_ranks?.scope === "branch"
+              ? row.branch_id === actor.branch_id && row.role !== "COMPANY_ADMIN" && !isPlatformRole(row.role)
+              : row.company_id === actor.company_id && row.role !== "OWNER" && row.role !== "SUPER_ADMIN")
+        : canManage(me, placementOf(row))),
+    ),
   );
   return {
     members,
@@ -485,7 +494,7 @@ function rankCompanyId(actor: MemberRow, body: Record<string, unknown>): string 
 async function listRanks(actor: MemberRow) {
   assertCompanyAdmin(actor);
   const cid = isPlatformRole(actor.role) ? null : actor.company_id;
-  let query = db.from("custom_ranks").select("id, company_id, name, name_ar, rank_level, scope, created_at").order("rank_level", { ascending: false });
+  let query = db.from("custom_ranks").select("id, company_id, name, name_ar, scope, created_at").order("created_at", { ascending: false });
   if (cid) query = query.eq("company_id", cid);
   const { data: ranks, error } = await query;
   if (error) throw error;
@@ -510,12 +519,11 @@ async function listRanks(actor: MemberRow) {
     memberMap.set(m.rank_id, arr);
   }
   return {
-    ranks: ranks.map((r: { id: string; company_id: string; name: string; name_ar: string | null; rank_level: number; scope: string; created_at: string }) => ({
+    ranks: ranks.map((r: { id: string; company_id: string; name: string; name_ar: string | null; scope: string; created_at: string }) => ({
       id: r.id,
       companyId: r.company_id,
       name: r.name,
       nameAr: r.name_ar,
-      rankLevel: r.rank_level,
       scope: r.scope,
       permissions: permMap.get(r.id) ?? [],
       memberIds: memberMap.get(r.id) ?? [],
@@ -530,7 +538,6 @@ async function createRank(actor: MemberRow, body: Record<string, unknown>) {
   assertCompanyAdmin(actor);
   const name = requireString(body.name, "rank_name");
   const nameAr = optionalString(body.nameAr);
-  const rankLevel = typeof body.rankLevel === "number" ? body.rankLevel : 20;
   const cid = rankCompanyId(actor, body);
   const permissions = Array.isArray(body.permissions) ? body.permissions : [];
   for (const p of permissions) {
@@ -538,7 +545,7 @@ async function createRank(actor: MemberRow, body: Record<string, unknown>) {
   }
   const scope = typeof body.scope === "string" && VALID_SCOPES.includes(body.scope as (typeof VALID_SCOPES)[number]) ? body.scope : "company";
   const { data: rank, error: rankError } = await db
-    .from("custom_ranks").insert({ name, name_ar: nameAr, rank_level: rankLevel, company_id: cid, scope }).select("id").maybeSingle();
+    .from("custom_ranks").insert({ name, name_ar: nameAr, company_id: cid, scope }).select("id").maybeSingle();
   if (rankError) throw rankError;
   if (!rank) throw new HttpError(422, "invalid_rank");
   if (permissions.length > 0) {
@@ -563,7 +570,6 @@ async function updateRank(actor: MemberRow, body: Record<string, unknown>) {
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof body.name === "string" && body.name.trim()) updates.name = body.name.trim();
   if (typeof body.nameAr === "string") updates.name_ar = body.nameAr.trim() || null;
-  if (typeof body.rankLevel === "number") updates.rank_level = body.rankLevel;
   if (Object.keys(updates).length > 1) {
     const { error: updateError } = await db.from("custom_ranks").update(updates).eq("id", id);
     if (updateError) throw updateError;
@@ -663,8 +669,9 @@ async function listPasswordRequests(actor: MemberRow) {
   const cid = platform ? null : actor.company_id;
   let query = db
     .from("password_change_requests")
-    .select("id, member_id, company_id, status, requested_at, reviewed_at, reviewed_by, note, target_role, browser_fingerprint, members(full_name_en, email, user_id)")
-    .order("requested_at", { ascending: false });
+    .select("id, member_id, company_id, status, requested_at, reviewed_at, reviewed_by, note, target_role, browser_fingerprint, members!member_id(full_name_en, email, user_id)")
+    .order("requested_at", { ascending: false })
+    .neq("member_id", actor.id);
   if (cid) query = query.eq("company_id", cid);
   if (platform) query = query.or(`target_role.eq.platform,company_id.is.null,target_role.is.null`);
   const { data, error } = await query;
@@ -754,6 +761,7 @@ async function reviewPasswordRequest(actor: MemberRow, body: Record<string, unkn
   const { data: req, error: checkError } = await checkQuery.maybeSingle();
   if (checkError) throw checkError;
   if (!req) throw new HttpError(404, "not_found");
+  if ((req as { member_id: string }).member_id === actor.id) throw new HttpError(403, "cannot_review_own_request");
   const { error } = await db.from("password_change_requests").update({
     status: decision,
     reviewed_at: new Date().toISOString(),

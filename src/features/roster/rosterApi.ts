@@ -207,7 +207,6 @@ export interface CustomRank {
   companyId: string;
   name: string;
   nameAr: string | null;
-  rankLevel: number;
   scope: 'company' | 'branch' | 'specific';
   permissions: string[];
   memberIds: string[];
@@ -236,7 +235,6 @@ export async function listRanks(): Promise<{ ranks: CustomRank[] }> {
 export async function createRank(input: {
   name: string;
   nameAr?: string | null;
-  rankLevel: number;
   permissions: string[];
   scope?: 'company' | 'branch' | 'specific';
   memberIds?: string[];
@@ -249,7 +247,6 @@ export async function updateRank(input: {
   id: string;
   name?: string;
   nameAr?: string | null;
-  rankLevel?: number;
   permissions?: string[];
   scope?: 'company' | 'branch' | 'specific';
   memberIds?: string[];

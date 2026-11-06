@@ -68,7 +68,6 @@ export function RanksPage() {
                   <div className="min-w-0">
                     <h2 className="truncate text-lg font-semibold text-primary-900">{rank.name}</h2>
                     {rank.nameAr && <p className="text-xs text-neutral-600" dir="auto">{rank.nameAr}</p>}
-                    <p className="mt-1 text-xs text-neutral-600">{t('ranksPage.level', { level: rank.rankLevel })}</p>
                     <p className="mt-1 text-xs font-medium text-accent-700">{t(`ranksPage.scope.${rank.scope}`)}</p>
                   </div>
                 </div>
@@ -175,7 +174,7 @@ function ScopeSelector({
           onClick={() => onChange(isCompany ? 'branch' : 'company')}
           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${isCompany ? 'bg-accent-600' : 'bg-neutral-300'}`}
         >
-          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCompany ? 'translate-x-6' : 'translate-x-1'}`} />
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCompany ? 'translate-x-6 rtl:-translate-x-6' : 'translate-x-1 rtl:-translate-x-1'}`} />
         </button>
       </div>
       <label className="flex items-center gap-2 text-sm text-primary-900 cursor-pointer">
@@ -243,7 +242,6 @@ function RankDialog({
 
   const [name, setName] = useState(rank?.name ?? '');
   const [nameAr, setNameAr] = useState(rank?.nameAr ?? '');
-  const [rankLevel, setRankLevel] = useState(rank?.rankLevel ?? 20);
   const [permissions, setPermissions] = useState<string[]>(rank?.permissions ?? []);
   const [scope, setScope] = useState<RankScope>(rank?.scope ?? 'company');
   const [memberIds, setMemberIds] = useState<string[]>(rank?.memberIds ?? []);
@@ -252,14 +250,12 @@ function RankDialog({
     if (rank) {
       setName(rank.name);
       setNameAr(rank.nameAr ?? '');
-      setRankLevel(rank.rankLevel);
       setPermissions(rank.permissions);
       setScope(rank.scope);
       setMemberIds(rank.memberIds);
     } else {
       setName('');
       setNameAr('');
-      setRankLevel(20);
       setPermissions([]);
       setScope('company');
       setMemberIds([]);
@@ -283,7 +279,6 @@ function RankDialog({
           id: rank.id,
           name: name.trim(),
           nameAr: nameAr.trim() || null,
-          rankLevel,
           permissions,
           scope,
           memberIds: scope === 'specific' ? memberIds : [],
@@ -292,7 +287,6 @@ function RankDialog({
         await createMutation.mutateAsync({
           name: name.trim(),
           nameAr: nameAr.trim() || null,
-          rankLevel,
           permissions,
           scope,
           memberIds: scope === 'specific' ? memberIds : [],
@@ -322,7 +316,7 @@ function RankDialog({
         className="flex flex-col gap-5"
         noValidate
       >
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2">
           <Field id="rank-name" label={t('ranksPage.fieldName')}>
             <input
               id="rank-name"
@@ -341,18 +335,6 @@ function RankDialog({
               onChange={(e) => setNameAr(e.target.value)}
               disabled={mutation.isPending}
               dir="auto"
-            />
-          </Field>
-          <Field id="rank-level" label={t('ranksPage.fieldLevel')}>
-            <input
-              id="rank-level"
-              type="number"
-              min={1}
-              max={60}
-              className={inputClass}
-              value={rankLevel}
-              onChange={(e) => setRankLevel(Number(e.target.value) || 20)}
-              disabled={mutation.isPending}
             />
           </Field>
         </div>
