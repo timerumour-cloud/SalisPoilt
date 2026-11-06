@@ -7,7 +7,8 @@ import { Button } from '@/shared/ui/Button';
 import { Field, inputClass } from '@/shared/ui/Field';
 import { firebaseErrorCode } from '@/shared/auth/firebase';
 import { useAuth } from '@/features/auth/useAuth';
-import { createPasswordRequestByEmail } from '@/features/roster/rosterApi';
+import { checkPasswordRequestByEmail, createPasswordRequestByEmail } from '@/features/roster/rosterApi';
+import { getBrowserFingerprint } from '@/shared/utils/browserFingerprint';
 
 const schema = z.object({
   email: z.string().trim().email(),
@@ -15,12 +16,13 @@ const schema = z.object({
 
 type ForgotPasswordValues = z.infer<typeof schema>;
 
-type ResetStatus = 'idle' | 'sent' | 'requested' | 'network' | 'unknown';
+type ResetStatus = 'idle' | 'sent' | 'requested' | 'pending' | 'network' | 'unknown';
 
 export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
   const { sendPasswordReset } = useAuth();
   const [status, setStatus] = useState<ResetStatus>('idle');
+  const [checking, setChecking] = useState(false);
   const {
     register,
     handleSubmit,
@@ -31,14 +33,24 @@ export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
   });
 
   const requestApproval = async () => {
-    const email = document.getElementById('reset-email') as HTMLInputElement | null;
-    if (!email?.value) return;
+    const emailInput = document.getElementById('reset-email') as HTMLInputElement | null;
+    if (!emailInput?.value) return;
+    const email = emailInput.value.trim().toLowerCase();
+    const fp = getBrowserFingerprint();
     setStatus('idle');
+    setChecking(true);
     try {
-      await createPasswordRequestByEmail(email.value);
+      const { pending } = await checkPasswordRequestByEmail(email, fp);
+      if (pending) {
+        setStatus('pending');
+        return;
+      }
+      await createPasswordRequestByEmail(email, fp);
       setStatus('requested');
     } catch {
       setStatus('unknown');
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -80,17 +92,22 @@ export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
         {status === 'requested' && (
           <p role="status" className="rounded-lg bg-success-50 px-3 py-2 text-sm text-success-700">{t('auth.forgot.requested')}</p>
         )}
+        {status === 'pending' && (
+          <p role="status" className="rounded-lg bg-warning-50 px-3 py-3 text-sm text-warning-700">
+            {t('auth.forgot.pending')}
+          </p>
+        )}
         {(status === 'network' || status === 'unknown') && (
           <p role="alert" className="rounded-lg bg-error-50 px-3 py-2 text-sm text-error-700">
             {t(`auth.errors.${status}`)}
           </p>
         )}
         <div className="grid gap-3 sm:grid-cols-2">
-          <Button type="submit" disabled={isSubmitting} className="w-full">
+          <Button type="submit" disabled={isSubmitting || checking} className="w-full">
             {isSubmitting ? t('auth.forgot.submitting') : t('auth.forgot.submit')}
           </Button>
-          <Button type="button" variant="secondary" onClick={() => void requestApproval()} disabled={isSubmitting} className="w-full">
-            {t('auth.forgot.requestApproval')}
+          <Button type="button" variant="secondary" onClick={() => void requestApproval()} disabled={isSubmitting || checking} className="w-full">
+            {checking ? t('common.loading') : t('auth.forgot.requestApproval')}
           </Button>
         </div>
       </form>

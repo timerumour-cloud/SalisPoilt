@@ -161,38 +161,31 @@ function ScopeSelector({
   onChange: (scope: RankScope) => void;
 }) {
   const { t } = useTranslation();
-  const options: RankScope[] = ['company', 'branch', 'specific'];
+  const isCompany = scope === 'company';
+  const isSpecific = scope === 'specific';
   return (
-    <div className="flex flex-col gap-2">
-      <label className="flex items-center gap-2 text-sm text-primary-900">
+    <div className="flex flex-col gap-3">
+      <div className={`flex items-center justify-between gap-3 rounded-lg border border-neutral-200 px-3 py-2.5 text-sm transition-colors ${isSpecific ? 'opacity-50' : 'cursor-pointer hover:bg-neutral-50'}`}>
+        <span className="text-primary-900">{t('ranksPage.applyToAll')}</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isCompany}
+          disabled={isSpecific}
+          onClick={() => onChange(isCompany ? 'branch' : 'company')}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${isCompany ? 'bg-accent-600' : 'bg-neutral-300'}`}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCompany ? 'translate-x-6' : 'translate-x-1'}`} />
+        </button>
+      </div>
+      <label className="flex items-center gap-2 text-sm text-primary-900 cursor-pointer">
         <input
-          type="radio"
-          name="rank-scope"
-          checked={scope === 'company'}
-          onChange={() => onChange('company')}
-          className="h-4 w-4 text-accent-600 focus:ring-accent-500"
+          type="checkbox"
+          checked={isSpecific}
+          onChange={() => onChange(isSpecific ? 'branch' : 'specific')}
+          className="h-4 w-4 rounded border-neutral-300 text-accent-600 focus:ring-accent-500"
         />
-        {t('ranksPage.scope.company')}
-      </label>
-      <label className="flex items-center gap-2 text-sm text-primary-900">
-        <input
-          type="radio"
-          name="rank-scope"
-          checked={scope === 'branch'}
-          onChange={() => onChange('branch')}
-          className="h-4 w-4 text-accent-600 focus:ring-accent-500"
-        />
-        {t('ranksPage.scope.branch')}
-      </label>
-      <label className="flex items-center gap-2 text-sm text-primary-900">
-        <input
-          type="radio"
-          name="rank-scope"
-          checked={scope === 'specific'}
-          onChange={() => onChange('specific')}
-          className="h-4 w-4 text-accent-600 focus:ring-accent-500"
-        />
-        {t('ranksPage.scope.specific')}
+        {t('ranksPage.selectSpecific')}
       </label>
     </div>
   );

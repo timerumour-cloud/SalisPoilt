@@ -121,7 +121,8 @@
     "sendReset": "Email me a password link",
     "requestReset": "Request approval to change password",
     "resetSent": "A password-change link was sent to your email.",
-    "requestSent": "Your request was sent to an authorized owner."
+    "requestSent": "Your request was sent to an authorized owner.",
+    "pendingRequest": "Your password reset request is pending and waiting for an administrator's approval."
   },
   "organization": {
     "branches": "branches",
@@ -231,6 +232,7 @@
       "sent": "If an account exists for this email, a reset link is on its way. Check your spam folder.",
       "requestApproval": "Request approval from an owner",
       "requested": "Your request was sent to the platform or company owner.",
+      "pending": "Your password reset request is pending and waiting for an administrator's approval.",
       "back": "Back to sign in"
     },
     "signOut": "Sign out"
@@ -274,7 +276,7 @@
       "addCompany": "Add",
       "creatingCompany": "Adding...",
       "companyCreateFailed": "Could not add this company.",
-      "companyAssignment": "Company & branch",
+      "companyAssignment": "Branch",
       "companyHint": "Use the Branches page to manage teams and locations.",
       "branch": "Branch",
       "noBranch": "No branch",
@@ -435,6 +437,8 @@
     "deleteConfirm": "Are you sure you want to delete \"{{name}}\"? Members with this rank will lose its permissions.",
     "deleteFailed": "Could not delete the rank. Try again.",
     "scopeLabel": "Scope of application",
+    "applyToAll": "Apply these permissions to all employees",
+    "selectSpecific": "Select specific employees",
     "scope": {
       "company": "Apply to all employees in the company",
       "branch": "Apply only to employees in the person's branch",

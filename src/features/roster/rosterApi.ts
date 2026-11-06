@@ -271,6 +271,8 @@ export interface PasswordChangeRequest {
   reviewed_at: string | null;
   reviewed_by: string | null;
   note: string | null;
+  target_role: string | null;
+  browser_fingerprint: string | null;
   members: { full_name_en: string; email: string; user_id: string } | null;
 }
 
@@ -278,17 +280,33 @@ export async function listPasswordRequests(): Promise<{ requests: PasswordChange
   return callRoster<{ requests: PasswordChangeRequest[] }>({ action: 'listPasswordRequests' });
 }
 
-export async function createPasswordRequest(): Promise<void> {
-  await callRoster<{ ok: true }>({ action: 'createPasswordRequest' });
+export async function createPasswordRequest(browserFingerprint: string): Promise<void> {
+  await callRoster<{ ok: true }>({ action: 'createPasswordRequest', browserFingerprint });
 }
 
-export async function createPasswordRequestByEmail(email: string): Promise<void> {
+export async function checkPasswordRequest(browserFingerprint: string): Promise<{ pending: boolean; requestedAt: string | null }> {
+  return callRoster<{ pending: boolean; requestedAt: string | null }>({ action: 'checkPasswordRequest', browserFingerprint });
+}
+
+export async function createPasswordRequestByEmail(email: string, browserFingerprint: string): Promise<void> {
   const response = await fetch(ROSTER_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'requestPasswordByEmail', email }),
+    body: JSON.stringify({ action: 'requestPasswordByEmail', email, browserFingerprint }),
   });
   if (!response.ok) throw new RosterError(response.status, 'request_failed');
+}
+
+export async function checkPasswordRequestByEmail(email: string, browserFingerprint: string): Promise<{ pending: boolean; requestedAt: string | null }> {
+  const response = await fetch(ROSTER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'checkPasswordRequestByEmail', email, browserFingerprint }),
+  });
+  if (!response.ok) throw new RosterError(response.status, 'request_failed');
+  const payload = await response.json().catch(() => null);
+  if (typeof payload !== 'object' || payload === null) throw new RosterError(response.status, 'invalid_response');
+  return payload as { pending: boolean; requestedAt: string | null };
 }
 
 export async function addCompanyAssistant(input: {
